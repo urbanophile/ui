@@ -1,16 +1,17 @@
 # UI - Readme
 
-This to contain instructions a non-developer end user could use to get this running. 
+This to contain instructions a non-developer end user could use to get this running.
 
 # LICENCE
 
-Decide on later. 
+Decide on later.
 
 # Dev setup.
 
 ## Install dependencies.
 The order may matter.
-* Python XY 
+* Windows 7 (or later)
+* Python XY
 * Microsoft .NET Framework 4.5
 * Labview 2013 64bit (or later)
 * NI-DAQmx (make sure it's > 14.5)
@@ -27,4 +28,4 @@ Then run main.py
 
 We'll use "master" for the current state of development, but new features should be taken to new branches then merged to master when working.
 
-"master" won't be necessarily releasable. Releases will be tagged. 
+"master" won't be necessarily releasable. Releases will be tagged.
