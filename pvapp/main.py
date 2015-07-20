@@ -17,6 +17,7 @@ Things to improve:
 
 import ctypes
 import Gui_Main_v2 as gui  # import the newly created GUI file
+import json
 import numpy as np
 import os  # importing wx files
 import threading
@@ -52,8 +53,8 @@ class WaveformThread(threading.Thread):
     """
     This class performs the necessary initialization of the DAQ hardware and
     spawns a thread to handle playback of the signal.
-    It takes as input arguments the waveform to play and the sample rate at which
-    to play it.
+    It takes as input arguments the waveform to play and the sample rate at
+    which to play it.
     This will play an arbitrary-length waveform file.
     """
 
@@ -345,69 +346,6 @@ class LightPulse():
         return -1 * np.concatenate((f, f[::-1]))
 
 
-class OutputData():
-    """
-    This class handles loading and saving file data
-    """
-
-    Path = os.getcwd()
-    LoadPath = os.getcwd()
-
-    def save_data(self, data, filename, filepath):
-        """
-        Writes experimental data to TSV file
-        """
-
-        variables = 'Time (s)\tGeneration (V)\tPC (V)\tPL (V)'
-        full_path = os.path.join(filepath, filename + '.dat')
-        np.savetxt(full_path, data, delimiter='\t', header=variables)
-
-    def save_metadata(self, metadata_list, filename, filepath):
-        """
-        Writes experimental metadata to JSON file
-        """
-        print("am I executed?")
-        del metadata_list['event']
-        del metadata_list['self']
-        output = 'MJ system\r\nList of variables:\r\n'
-
-        full_path = os.path.join(filepath, filename + '.inf')
-
-        for row in metadata_list:
-            output += '{0}:\t{1}\r\n'.format(row, metadata_list[row])
-
-        with open(full_path, 'w') as text_file:
-                text_file.write(output)
-
-    def Load_Inf(self):
-        """
-        Loads metadata file and returns a python dictionary
-        """
-
-        dialog = wx.FileDialog(
-            None,
-            'Pick a Setting File dude!',
-            self.LoadPath,
-            '',
-            r'*.inf',
-            wx.FD_OPEN
-        )
-
-        self.LoadPath = dialog.GetPath()[::-1].split('\\', 1)[-1][::-1]
-        if dialog.ShowModal() == wx.ID_OK:
-
-            with open(dialog.GetPath(), 'r') as f:
-                s = f.read()
-
-        dialog.Destroy()
-        List = {}
-        for i in s.split('\n')[2:-1]:
-            # print i.split(':\t')[1]
-            List[i.split(':\t')[0].strip()] = i.split(':\t')[1].strip()
-        List['Averaging'] = str(int(float(List['Averaging'])))
-        return List
-
-
 class TakeMeasurements():
     """
     Controller to handle IO from NI datacard
@@ -460,6 +398,52 @@ class TakeMeasurements():
             print('Averaging Too low')
 
 
+class OutputData():
+    """
+    This class handles loading and saving file data
+    """
+
+    Path = os.getcwd()
+    LoadPath = os.getcwd()
+
+    def save_data(self, data, filename, filepath):
+        """
+        Writes experimental data to TSV file
+        """
+
+        variables = 'Time (s)\tGeneration (V)\tPC (V)\tPL (V)'
+        full_path = os.path.join(filepath, filename + '.dat')
+        np.savetxt(full_path, data, delimiter='\t', header=variables)
+
+    def save_metadata(self, metadata_dict, filename, filepath):
+        """
+        Writes experimental metadata to JSON file
+        """
+
+        full_path = os.path.join(filepath, filename + '.inf')
+        serialised_json = json.dumps(
+            metadata_dict,
+            sort_keys=True,
+            indent=4,
+            separators=(',', ': ')
+        )
+
+        with open(full_path, 'w') as text_file:
+                text_file.write(serialised_json)
+
+    def load_metadata(self, full_filepath):
+        """
+        Loads metadata file and returns a python dictionary
+        """
+
+        with open(full_filepath, 'r') as f:
+            file_contents = f.read()
+            metadata_dict = json.loads(file_contents)
+
+        return metadata_dict
+
+
+
 class Test(gui.MyFrame1, OutputData):
     """
     Controller to handle interface with wx UI
@@ -494,7 +478,7 @@ class Test(gui.MyFrame1, OutputData):
 
     def Save(self, event):
         """
-
+        Method to handle dialogue window and saving data to file
         """
         # temp call to GetVAlues
         getattr(self, 'GetValues_' + self.measurement_type)(event)
@@ -513,8 +497,9 @@ class Test(gui.MyFrame1, OutputData):
             self.Path = os.path.dirname(dialog_path)
             self.SaveName = os.path.splitext(os.path.basename(dialog_path))[0]
 
-            self.save_data(self.Data, self.SaveName, self.Path)
             metadata_list = self.Make_List_For_Inf_Save(event)
+            print(type(metadata_list), metadata_list.__class__.__name__)
+            self.save_data(self.Data, self.SaveName, self.Path)
             self.save_metadata(metadata_list, self.SaveName, self.Path)
 
         else:
@@ -525,24 +510,42 @@ class Test(gui.MyFrame1, OutputData):
 
 
     def Load(self, event):
+        """
+        Method to handle load metadata dialog window and update metadata state
+        """
 
-        List = self.Load_Inf()
+        dialog = wx.FileDialog(
+            None,
+            'Select a metadata file',
+            self.LoadPath,
+            '',
+            r'*.inf',
+            wx.FD_OPEN
+        )
 
-        self.m_Intensity.SetValue(List['Intensity_v'])
-        self.m_Threshold.SetValue(List['Threshold_mA'])
-        self.m_Waveform.SetStringSelection(List['Waveform'])
-        # print List['Waveform'],List['Channel']
-        self.m_Output.SetStringSelection(List['Channel'])
-        self.m_Averaging.SetValue(List['Averaging'])
-        try:
-            self.m_Binning.SetValue(List['Measurement_Binning'])
-        except:
-            self.m_Binning.SetValue(List['Binning'])
+        if dialog.ShowModal() == wx.ID_OK:
 
-        self.m_Offset_Before.SetValue(List['Offset_Before_ms'])
-        self.m_Period.SetValue(List['Peroid_s'])
-        self.m_Offset_After.SetValue(List['Offset_After_ms'])
+            metadata_dict = self.load_metadata(dialog.GetPath())
+            metadata_stringified = dict(
+                [a, str(x)] for a, x in metadata_dict.iteritems()
+            )
+            print(metadata_stringified)
+            # print(type(self.m_Intensity))
+            self.m_Intensity.SetValue(metadata_stringified[u'Intensity_v'])
+            self.m_Threshold.SetValue(metadata_stringified[u'Threshold_mA'])
+            self.m_Waveform.SetStringSelection(metadata_stringified[u'Waveform'])
+            self.m_Output.SetStringSelection(metadata_stringified[u'Channel'])
+            self.m_Averaging.SetValue(metadata_stringified[u'Averaging'])
+            try:
+                self.m_Binning.SetValue(metadata_stringified[u'Measurement_Binning'])
+            except:
+                self.m_Binning.SetValue(metadata_stringified[u'Binning'])
 
+            self.m_Offset_Before.SetValue(metadata_stringified[u'Offset_Before_ms'])
+            self.m_Period.SetValue(metadata_stringified[u'Peroid_s'])
+            self.m_Offset_After.SetValue(metadata_stringified[u'Offset_After_ms'])
+
+        dialog.Destroy()
         event.Skip()
 
     def GetValues_Standard(self, event):
@@ -569,7 +572,11 @@ class Test(gui.MyFrame1, OutputData):
         Offset_Before_ms = self.CHK_float(self.m_Offset_Before, event)
         Peroid_s = self.CHK_float(self.m_Period, event)
         Offset_After_ms = self.CHK_float(self.m_Offset_After, event)
-        return locals()
+        # REFACTOR: this has weird side effects
+        metadata_dict = locals()
+        del metadata_dict['self']
+        del metadata_dict['event']
+        return metadata_dict
 
     def Perform_Standard_Measurement(self, event):
         self.measurement_type = 'Standard'
