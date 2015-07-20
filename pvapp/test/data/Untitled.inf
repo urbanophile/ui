@@ -1,0 +1,11 @@
+MJ system
+List of variables:
+Threshold_mA:	150.0
+Averaging:	1
+Intensity_v:	0.5
+Waveform:	MJ
+Offset_Before_ms:	1.0
+Peroid_s:	1.0
+Offset_After_ms:	10.0
+Measurement_Binning:	1
+Channel:	High (2A/V)
