@@ -17,7 +17,6 @@ Things to improve:
 
 import ctypes
 import Gui_Main_v2 as gui  # import the newly created GUI file
-import json
 import matplotlib.pylab as plt
 import numpy as np
 import os  # importing wx files
@@ -26,7 +25,7 @@ import wx
 import ConstantsClass
 from CanvasClass import CanvasPanel
 from math import pi
-
+from util import utils
 
 from scipy import signal
 
@@ -59,6 +58,10 @@ class WaveformThread(threading.Thread):
     It takes as input arguments the waveform to play and the sample rate at
     which to play it.
     This will play an arbitrary-length waveform file.
+
+    Attributes
+    ----------
+
     """
 
     DAQmx_Val_Cfg_Default = int32(-1)
@@ -423,17 +426,23 @@ class LightPulse():
 class TakeMeasurements():
     """
     Controller to handle IO from NI datacard
+
+    Attributes
+    ----------
     """
     def __init__(self, OutPutVoltage, Averaging, Channel, Time):
         self.OutPutVoltage = OutPutVoltage
         self.SampleRate = DAQmx_OutPutSampleRate
         self.Time = Time
-        # print self.Time,Time
         self.Averaging = int(Averaging)
         self.Channel = Channel
 
 
     def SingleMeasurement(self):
+        """
+        Sends a single version of waveform to the specified channel
+        Returns:
+        """
 
         # start playing waveform
         mythread = WaveformThread(self.OutPutVoltage, self.Channel, self.Time)
@@ -454,74 +463,32 @@ class TakeMeasurements():
             RunningTotal = np.average(RunningTotal, axis=0, weights=(1, i + 1))
         return RunningTotal
 
-
     def Measure(self):
-        NoChannls = 3.
-        if self.Averaging > 0:
+        NUM_CHANNELS = 3.
 
-            data = self.Average()
-            # Here the 3 stands for the number of channels what are going to be read
-            Data = np.empty((int(data.shape[0] / NoChannls), NoChannls))
-            # print Data.shape,data.shape
-            for i in range(int(NoChannls)):
-                # The data should be outputted one of each other, so divide it up and roll it out
-                Data[:, i] = data[i * Data.shape[0]:(i + 1) * Data.shape[0]]
+        assert self.Averaging > 0, "Averaging ={0}".format(self.Averaging)
 
-            return vstack((self.time, Data.T)).T
-        else:
-            print('Averaging Too low')
+        data = self.Average()
+        # Here the 3 stands for the number of channels
+        # what are going to be read
+        Data = np.empty((int(data.shape[0] / NUM_CHANNELS), NUM_CHANNELS))
+        # print Data.shape,data.shape
+        for i in range(int(NUM_CHANNELS)):
+            # The data should be outputted one of each other, so divide it
+            # up and roll it out
+            Data[:, i] = data[i * Data.shape[0]:(i + 1) * Data.shape[0]]
 
-
-class OutputData():
-    """
-    This class handles loading and saving file data
-    """
-
-    Path = os.getcwd()
-    LoadPath = os.getcwd()
-
-    def save_data(self, data, filename, filepath):
-        """
-        Writes experimental data to TSV file
-        """
-
-        variables = 'Time (s)\tGeneration (V)\tPC (V)\tPL (V)'
-        full_path = os.path.join(filepath, filename + '.dat')
-        np.savetxt(full_path, data, delimiter='\t', header=variables)
-
-    def save_metadata(self, metadata_dict, filename, filepath):
-        """
-        Writes experimental metadata to JSON file
-        """
-        print(metadata_dict, type(metadata_dict))
-        assert type(metadata_dict) is dict
-
-        full_path = os.path.join(filepath, filename + '.inf')
-        serialised_json = json.dumps(
-            metadata_dict,
-            sort_keys=True,
-            indent=4,
-            separators=(',', ': ')
-        )
-
-        with open(full_path, 'w') as text_file:
-                text_file.write(serialised_json)
-
-    def load_metadata(self, full_filepath):
-        """
-        Loads metadata file and returns a python dictionary
-        """
-
-        with open(full_filepath, 'r') as f:
-            file_contents = f.read()
-            metadata_dict = json.loads(file_contents)
-
-        return metadata_dict
+        return np.vstack((self.time, Data.T)).T
 
 
-class GUIController(gui.MyFrame1, OutputData):
+
+
+class GUIController(gui.MyFrame1):
     """
     Controller to handle interface with wx UI
+
+    Attributes
+    ----------
     """
     # constructor
     measurement_type = 'Standard'
@@ -574,8 +541,8 @@ class GUIController(gui.MyFrame1, OutputData):
 
             metadata_list = self.Make_List_For_Inf_Save(event)
             print(type(metadata_list), metadata_list.__class__.__name__)
-            self.save_data(self.Data, self.SaveName, self.Path)
-            self.save_metadata(metadata_list, self.SaveName, self.Path)
+            utils.OutputData().save_data(self.Data, self.SaveName, self.Path)
+            utils.OutputData().save_metadata(metadata_list, self.SaveName, self.Path)
 
         else:
             print('Canceled save')
@@ -600,7 +567,7 @@ class GUIController(gui.MyFrame1, OutputData):
 
         if dialog.ShowModal() == wx.ID_OK:
 
-            metadata_dict = self.load_metadata(dialog.GetPath())
+            metadata_dict = utils.OutputData.load_metadata(dialog.GetPath())
             metadata_stringified = dict(
                 [a, str(x)] for a, x in metadata_dict.iteritems()
             )
@@ -706,10 +673,12 @@ class GUIController(gui.MyFrame1, OutputData):
             )
 
             # print 'here'
-            # Using that instance we then run the lights, and measure the outputs
-            self.Data = self.Bin_Data(Go.Measure(), self.Binning)
+            # Using that instance we then run the lights,
+            # and measure the outputs
+            self.Data = utils.bin_data(Go.Measure(), self.Binning)
             # self.Data = lightPulse.Define()
-            # We then plot the datas, this has to be changed if the plots want to be updated on the fly.
+            # We then plot the datas, this has to be changed if the plots want
+            # to be updated on the fly.
 
             event.Skip()
         else:
@@ -759,23 +728,6 @@ class GUIController(gui.MyFrame1, OutputData):
         if e is not None:
             e.skip()
 
-
-    def Bin_Data(self, data, BinAmount):
-
-        if BinAmount == 1:
-            return data
-        # This is part of a generic binning class that I wrote.
-        # It lets binning occur of the first axis for any 2D or 1D array
-        if len(data.shape) == 1:
-            data2 = zeros((data.shape[0] // BinAmount))
-        else:
-            data2 = zeros((data.shape[0] // BinAmount, data.shape[1]))
-
-        for i in range(data.shape[0] // BinAmount):
-
-            data2[i] = mean(data[i * BinAmount:(i + 1) * BinAmount], axis=0)
-
-        return data2
 
     def onChar(self, event):
         # This function is for ensuring only numerical values are placed inside the textboxes
