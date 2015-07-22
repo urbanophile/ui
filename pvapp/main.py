@@ -12,20 +12,23 @@ Things to improve:
 
     Definition of Dev/ and channels
     Selectable inputs and output voltage ranges.
-    Make that you cna't load incorrect values (int and floats at least)
+    Make that you ca't load incorrect values (int and floats at least)
 """
 
 import ctypes
 import Gui_Main_v2 as gui  # import the newly created GUI file
 import json
+import matplotlib.pylab as plt
 import numpy as np
 import os  # importing wx files
 import threading
 import wx
-from ConstantsClass import *
-from CanvasClass import *
-from matplotlib.pylab import *
+import ConstantsClass
+from CanvasClass import CanvasPanel
 from math import pi
+
+
+from scipy import signal
 
 # load any DLLs
 try:
@@ -75,10 +78,10 @@ class WaveformThread(threading.Thread):
         self.running = True
         self.sampleRate = DAQmx_OutPutSampleRate
         # self.periodLength = len( waveform )
-        self.periodLength = Time*DAQmx_OutPutSampleRate
+        self.periodLength = Time * DAQmx_OutPutSampleRate
         self.Time = Time
 
-        self.Write_data = numpy.zeros((self.periodLength,), dtype=numpy.float64)
+        self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
 
         for i in range(self.periodLength):
 
@@ -134,7 +137,7 @@ class WaveformThread(threading.Thread):
 
     def Setup_Read(self, Time):
 
-        self.max_num_samples = int(numpy.float32(DAQmx_InputSampleRate) * 3 * Time)
+        self.max_num_samples = int(np.float32(DAQmx_InputSampleRate) * 3 * Time)
         # print Time
         self.CHK(nidaq.DAQmxCreateTask("", ctypes.byref(self.taskHandle_Read)))
 
@@ -162,7 +165,7 @@ class WaveformThread(threading.Thread):
         ))
         #  DAQmxCfgSampClkTiming(taskHandle,"",sampleRate,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,sampsPerChan);
         #  DAQmx Start Code
-        self.Read_Data = numpy.zeros((self.max_num_samples,), dtype=numpy.float64)
+        self.Read_Data = np.zeros((self.max_num_samples,), dtype=np.float64)
         self.read = int32()
 
     def CHK(self, err):
@@ -203,7 +206,8 @@ class WaveformThread(threading.Thread):
         self.time = np.linspace(0, self.Time, self.read.value)
         # print self.time[0]
 
-        # This check was performed to drtermine if the set frequency was actually what was measured. It appears it is.
+        # This check was performed to determine if the set frequency was
+        # actually what was measured. It appears it is.
         # print self.read.value
         # print (toc - tic)*1e6
         # print 'Minimum time reading',(toc - tic)*1e6/(self.read.value)
@@ -231,58 +235,167 @@ class WaveformThread(threading.Thread):
 class LightPulse():
     """
     Represents different wave forms to be sent to play
+
+    Attributes
+    ----------
+    Waveform: str
+        String for waveform type in Sin, FrequencyScan, Square, Cos,
+        Triangle, MJ
+    Amplitude: float
+        negative and in volts
+    Offset_Before: float
+        in milliseconds
+    Offset_After: float
+        in milliseconds
+    Duration: float
+        a positive time in milliseconds
+    Voltage_Threshold: float
+        ???
+    time_array: array
+        evenly spaced points over the time interval
+    complete_waveform: array
+        array of waveform intensity values including offsets
     """
 
-    def __init__(self, Waveform, Amplitude, Offset_Before, Offset_After, Time, Voltage_Threshold):
-        self.Waveform = Waveform
-        self.A = Amplitude
-        self.Offset_Before = Offset_Before     # ms
-        self.Offset_After = Offset_After        # ms
-        self.Time = Time                      # ms
-        self.OutputSamples = float32(DAQmx_OutPutSampleRate)
-        self.Voltage_Threshold = Voltage_Threshold
+    def __init__(self, waveform, amplitude, offset_before, offset_after,
+                 duration, voltage_threshold,
+                 sample_frequency=np.float32(DAQmx_OutPutSampleRate)):
 
-    def Define(self):
+        assert duration > 0
+        assert offset_after >= 0
+        assert offset_before >= 0
+        assert amplitude < 0
 
-        V_before = np.zeros((int(self.OutputSamples * self.Offset_Before / 1000)))
-        V_after = np.zeros((int(self.OutputSamples * self.Offset_After / 1000)))
+        self.Waveform = waveform
+        self.A = amplitude
+        self.Offset_Before = offset_before
+        self.Offset_After = offset_after
+        self.Duration = duration
+        self.output_samples = sample_frequency
+        self.Voltage_Threshold = voltage_threshold
+        self.time_array = np.array([])
+
+        self.complete_waveform = self.create_waveform()
+
+    def __repr__(self):
+        description = (
+            "<LightPulse object: {0}, {1} A, {2} Time, {3} V Threshold>"
+        ).format(
+            self.Waveform,
+            self.A,
+            self.Duration,
+            self.Voltage_Threshold
+        )
+        return description
+
+    # TODO: should be private method
+    def create_waveform(self):
+        """
+        Factory method to produce numpy array with light intensity values
+        """
+        # pad waveform with zeroes
+        v_before = np.zeros(
+            int(self.output_samples * self.Offset_Before / 1000)
+        )
+        v_after = np.zeros(
+            int(self.output_samples * self.Offset_After / 1000)
+        )
 
         if self.Waveform == 'FrequencyScan':
-            V, self.t = getattr(self, self.Waveform)(self.Time)
-
-            V -= self.Voltage_Threshold
+            # TODO: this is bad refactor
+            result = getattr(self, self.Waveform)(self.Duration)
+            voltage_waveform, self.time_array = result[0], result[1]
+            voltage_waveform -= self.Voltage_Threshold
 
         else:
-            self.t = np.linspace(0, self.Time, self.OutputSamples * self.Time)
-            V = getattr(self, self.Waveform)(self.t)
+            self.time_array = np.linspace(
+                0, self.Duration, num=self.output_samples * self.Duration
+            )
+            # TODO: this is bad, refactor
+            voltage_waveform = getattr(self, self.Waveform)(
+                self.time_array, self.A
+            )
+            voltage_waveform = self.scale_to_threshold(voltage_waveform)
 
-            V = self.Adjust_For_Threshold(V)
+        self.Duration = self.time_array[-1]
+        complete_waveform = np.concatenate(
+            (v_before, voltage_waveform, v_after)
+        )
 
-        self.Time = self.t[-1]
-        # print self.Time
-        Voltage_waveform = np.concatenate((V_before, V, V_after))
+        total_time = sum([self.Offset_Before / 1000,
+                          self.Offset_After / 1000,
+                          self.Duration])
+        self.time_array = np.linspace(
+            0, total_time, num=complete_waveform.shape[0]
+        )
+        return complete_waveform
 
-        Total_Time = self.Offset_Before / 1000 + self.Offset_After / 1000 + self.Time
-        self.t = np.linspace(0, Total_Time, Voltage_waveform.shape[0])
+    # TODO: also should be Private method
+    def scale_to_threshold(self, voltage_waveform):
+        """
+        Scales an array of voltage values to below voltage_threshold
+        """
+        #  everything is reversed because amplitude is negative
+        max_voltage = np.amax(abs(voltage_waveform))
+        scale_factor = (max_voltage - self.Voltage_Threshold) / max_voltage
+        voltage_waveform *= scale_factor * voltage_waveform
+        voltage_waveform -= self.Voltage_Threshold
+        return voltage_waveform
 
-        return Voltage_waveform
+    def Sin(self, time_array, amplitude):
+        """
+        Returns t sized array with values of sine wave over half the period
+        """
+        return -(amplitude) * np.abs(np.sin(pi * time_array / time_array[-1]))
 
-    def Adjust_For_Threshold(self, V):
-        #  eveything is reversed becomes of the negitive
-        Max = np.amax(abs(V))
+    def Square(self, time_array, amplitude):
+        """
+        Returns t sized array with values -A
+        """
+        return -amplitude * np.ones((time_array.shape[0]))
 
-        scale = (Max - self.Voltage_Threshold) / Max
+    def Cos(self, time_array, amplitude):
+        """
+        Returns t sized array with equally spaced values sampled from
+        0.5 * (cos(t) + A) over period 0 to pi
+        """
+        scale_factor = amplitude * 0.5
+        cos_values = np.cos(pi * time_array / time_array[-1])
+        return - scale_factor * cos_values - scale_factor
 
-        Addition = self.Voltage_Threshold
+    # BUG: something is funny with the implementation doesn't
+    def Triangle(self, time_array, amplitude, width=0.5):
+        """
+        Returns t sized array of equally spaced points from triangle wave
+        with peak at t/2. See details in underlying scipy.signal.sawtooth
+        """
+        t_length = time_array.shape[0]
+        wave = signal.sawtooth(2 * np.pi * np.linspace(0, 1, t_length), 0.5)
+        return -amplitude * 0.5 * (wave + 1)
 
-        V *= scale
-        V -= Addition
+    # TODO: rename to more  descriptive
+    def MJ(self, time_array, amplitude):
+        """
+        Return t sized array evenly space points on 1/x on log scale
+        """
+        fraction = 0.01
+        t_shift = time_array.shape[0] * fraction
+        t0_index = time_array.shape[0] * (0.5 - fraction)
+        midpoint = time_array.shape[0] / 2
+        t_halfway = time_array[midpoint]
 
-        return V
+        # Functions are:
+        # G = C/t
+        # G = Bx^4 + Amplitude
+        # These are then spliced together at t0
 
-
-    def Sin(self, t):
-        return -(self.A) * np.abs(np.sin(pi * t / t[-1]))
+        B = -self.A * time_array[t_shift] ** (-4) / 5.
+        C = 4. / 5 * self.A * time_array[t_shift]
+        f = np.concatenate((
+            -C / (time_array[:t0_index] - t_halfway),
+            B * (time_array[t0_index:midpoint] - t_halfway) ** 4 + amplitude
+        ))
+        return -1 * np.concatenate((f, f[::-1]))
 
     def FrequencyScan(self, number):
         """
@@ -291,13 +404,13 @@ class LightPulse():
         Amplitudefreaction = 0.025
         Inital_Time_Delay = 0.01
 
-        V = np.zeros(self.OutputSamples * .1)
-        T = np.linspace(0, Inital_Time_Delay, self.OutputSamples * .1)
+        V = np.zeros(self.output_samples * .1)
+        T = np.linspace(0, Inital_Time_Delay, self.output_samples * .1)
         t0 = T[-1]
 
         for f in np.logspace(self.Offset_Before, self.Offset_After, int(number))[::-1]:
 
-            t = np.arange(0, 10 / f, 1. / self.OutputSamples)
+            t = np.arange(0, 10 / f, 1. / self.output_samples)
 
             V = np.append(V, Amplitudefreaction * self.A * np.sin(2 * np.pi * f * t))
 
@@ -305,45 +418,6 @@ class LightPulse():
             t0 += t[-1]
 
         return -V - self.A, T
-
-    def Square(self, t):
-        return -self.A * np.ones((t.shape[0]))
-
-    def Cos(self, t):
-        """
-        returns np arrays
-        """
-        return -(self.A) * np.abs(np.cos(pi * t / t[-1]))
-
-    def Triangle(self, t):
-        halfway = t.shape[0] / 2
-        return -1 * np.concatenate((
-            self.A * 2 / t[-1] * t[:halfway],
-            -self.A * 2 / t[-1] * t[:halfway] + self.A
-        ))
-
-    def MJ(self, t):
-        """
-        waveform evenly space ppoints on 1/x on log scale
-        """
-        fraction = 0.01
-        t_shift = t.shape[0] * fraction
-        t0_index = t.shape[0] * (0.5 - fraction)
-        t_halfway_index = t.shape[0] / 2
-        t_halfway = t[t_halfway_index]
-        t0 = t[t0_index]
-
-        # Functions are:
-        # G = C/t
-        # G = Bx^4 + Amplitude
-        # These are then spliced together at t0
-
-        B, C = -self.A * t[t_shift] ** (-4) / 5., 4. / 5 * self.A * t[t_shift]
-        f = np.concatenate((
-            -C / (t[:t0_index] - t_halfway),
-            B * (t[t0_index:t_halfway_index] - t_halfway) ** 4 + self.A
-        ))
-        return -1 * np.concatenate((f, f[::-1]))
 
 
 class TakeMeasurements():
@@ -387,7 +461,7 @@ class TakeMeasurements():
 
             data = self.Average()
             # Here the 3 stands for the number of channels what are going to be read
-            Data = numpy.empty((int(data.shape[0] / NoChannls), NoChannls))
+            Data = np.empty((int(data.shape[0] / NoChannls), NoChannls))
             # print Data.shape,data.shape
             for i in range(int(NoChannls)):
                 # The data should be outputted one of each other, so divide it up and roll it out
@@ -419,6 +493,8 @@ class OutputData():
         """
         Writes experimental metadata to JSON file
         """
+        print(metadata_dict, type(metadata_dict))
+        assert type(metadata_dict) is dict
 
         full_path = os.path.join(filepath, filename + '.inf')
         serialised_json = json.dumps(
@@ -443,8 +519,7 @@ class OutputData():
         return metadata_dict
 
 
-
-class Test(gui.MyFrame1, OutputData):
+class GUIController(gui.MyFrame1, OutputData):
     """
     Controller to handle interface with wx UI
     """
@@ -457,7 +532,7 @@ class Test(gui.MyFrame1, OutputData):
 
         self.Fig1 = CanvasPanel(self.Figure1_Panel)
         self.Fig1.labels('Raw Data', 'Time (s)', 'Voltage (V)')
-        self.Data = array([])
+        self.Data = np.array([])
         # CanvasPanel(self.Figure2_Panel)
 
     def Determine_Digital_Output_Channel(self):
@@ -549,6 +624,8 @@ class Test(gui.MyFrame1, OutputData):
         event.Skip()
 
     def GetValues_Standard(self, event):
+
+        # TODO: refactor so DRY this looks very non
         self.Intensity = self.CHK_float(self.m_Intensity, event)
         self.Binning = self.CHK_int(self.m_Binning, event)
         self.Averaging = self.CHK_int(self.m_Averaging, event)
@@ -603,10 +680,10 @@ class Test(gui.MyFrame1, OutputData):
 
         # This the event hasn't been skipped then continue with the code.
         self.m_scrolledWindow1.Refresh()
-        if event.GetSkipped() == False:
+        if not event.GetSkipped():
 
             #  Then the light pulse is defined, but the lightpulse class
-            lightPulse = LightPulse(
+            light_pulse = LightPulse(
                 self.Waveform,
                 self.Intensity,
                 self.Offset_Before,
@@ -615,16 +692,21 @@ class Test(gui.MyFrame1, OutputData):
                 Voltage_Threshold
             )
 
+            print(light_pulse.__repr__())
             #  We determine what channel to output on
-            LP = lightPulse.Define()
-            t = lightPulse.t
 
-            #  We put all that info into the take measurement section, which is a instance definition. There are also global variables that go into this
-            Go = TakeMeasurements(LP, self.Averaging, Channel, t[-1])
+            # We put all that info into the take measurement section, which is
+            # a instance definition. There are also global variables that
+            # go into this
+            Go = TakeMeasurements(
+                light_pulse.complete_waveform,
+                self.Averaging,
+                Channel,
+                light_pulse.t[-1]
+            )
 
-            # Go.Measure()
             # print 'here'
-            # USing that instance we then run the lights, and measure the outputs
+            # Using that instance we then run the lights, and measure the outputs
             self.Data = self.Bin_Data(Go.Measure(), self.Binning)
             # self.Data = lightPulse.Define()
             # We then plot the datas, this has to be changed if the plots want to be updated on the fly.
@@ -812,11 +894,11 @@ if __name__ == "__main__":
 
     # mandatory in wx, create an app
     # False stands for not deteriction stdin/stdout
-    # refer manual for details
+    # refer to manual for details
     app = wx.App(False)
 
     # create an object of CalcFrame
-    frame = Test(None)
+    frame = GUIController(None)
     frame.Show(True)
     # start the application
     app.MainLoop()
