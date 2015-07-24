@@ -17,12 +17,10 @@ Things to improve:
 
 import ctypes
 import Gui_Main_v2 as gui  # import the newly created GUI file
-import matplotlib.pylab as plt
 import numpy as np
 import os  # importing wx files
 import threading
 import wx
-import ConstantsClass
 from CanvasClass import CanvasPanel
 from math import pi
 from util import utils
@@ -489,6 +487,25 @@ class GUIController(gui.MyFrame1):
 
     Attributes
     ----------
+    Threshold:
+    Channel:
+    MyFrame1:
+    Fig1
+    Data
+    LoadPath
+    Path
+    measurement_type
+
+
+    Intensity
+    Binning
+    Averaging
+    Peroid
+    Offset_Before
+    Offset_After
+    Waveform
+    Channel
+    Threshold
     """
     # constructor
     measurement_type = 'Standard'
@@ -501,6 +518,7 @@ class GUIController(gui.MyFrame1):
         self.Fig1.labels('Raw Data', 'Time (s)', 'Voltage (V)')
         self.Data = np.array([])
         # CanvasPanel(self.Figure2_Panel)
+        self.Path = os.getcwd()
 
     def Determine_Digital_Output_Channel(self):
         # Just a simple function choosing the correct output channel
@@ -559,7 +577,7 @@ class GUIController(gui.MyFrame1):
         dialog = wx.FileDialog(
             None,
             'Select a metadata file',
-            self.LoadPath,
+            self.Path,
             '',
             r'*.inf',
             wx.FD_OPEN
@@ -567,7 +585,7 @@ class GUIController(gui.MyFrame1):
 
         if dialog.ShowModal() == wx.ID_OK:
 
-            metadata_dict = utils.OutputData.load_metadata(dialog.GetPath())
+            metadata_dict = utils.OutputData().load_metadata(dialog.GetPath())
             metadata_stringified = dict(
                 [a, str(x)] for a, x in metadata_dict.iteritems()
             )
@@ -794,7 +812,7 @@ class GUIController(gui.MyFrame1):
         # print self.m_Output.GetStringSelection(),self.m_Intensity.GetValue(),float(self.m_Intensity.GetValue())>1.5
 
         # This is function to determine the appropriate current limit for the box
-        # A 10V limit is imposed oweing to limitations on the output voltage of the datcard
+        # A 10V limit is imposed due to limited the output voltage of the datacard
         try:
             if self.m_Output.GetStringSelection() == 'Low (50mA/V)':
                 if float(self.m_Intensity.GetValue()) > 10:
