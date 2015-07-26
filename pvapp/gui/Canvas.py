@@ -126,6 +126,9 @@ class CanvasPanel(wx.Panel):
 
 
 class MyCustomToolbar(NavigationToolbar2Wx):
+    """
+    Toolbar for Canvas panel
+    """
     X_SCALE_SWITCH = wx.NewId()
     Y_SCALE_SWITCH = wx.NewId()
 
@@ -135,9 +138,12 @@ class MyCustomToolbar(NavigationToolbar2Wx):
         # add new toolbar buttons
         temp = os.getcwd()
 
+        logx_icon_path = os.path.join(temp, 'gui', 'icons', 'Logx.png')
+        logy_icon_path = os.path.join(temp, 'gui', 'icons', 'Logy.png')
+
         self.AddSimpleTool(
             self.X_SCALE_SWITCH,
-            wx.Image('Logy.png', wx.BITMAP_TYPE_PNG).ConvertToBitmap(),
+            wx.Image(logx_icon_path, wx.BITMAP_TYPE_PNG).ConvertToBitmap(),
             'x Log Lin Toggle',
             'Switch the x-axis between log and linear scale',
             isToggle=0
@@ -147,7 +153,7 @@ class MyCustomToolbar(NavigationToolbar2Wx):
 
         self.AddSimpleTool(
             self.Y_SCALE_SWITCH,
-            wx.Image('Logx.png', wx.BITMAP_TYPE_PNG).ConvertToBitmap(),
+            wx.Image(logy_icon_path, wx.BITMAP_TYPE_PNG).ConvertToBitmap(),
             'y Log Lin Toggle',
             'Switch the y-axis between log and linear scale',
             isToggle=0

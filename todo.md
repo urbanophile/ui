@@ -9,6 +9,19 @@ ToDo
 * get sphinx documentation working
 * write unit tests for existing classes
 * document existing methods
+* write wrappers for the follow dll functions
+
+    nidaq.DAQmxCreateTask
+    nidaq.DAQmxStartTask
+    nidaq.DAQmxStopTask
+    nidaq.DAQmxClearTask
+    nidaq.DAQmxReadAnalogF64
+    nidaq.DAQmxWriteAnalogF64
+    nidaq.DAQmxGetErrorString
+    nidaq.DAQmxCfgSampClkTiming
+    nidaq.DAQmxCreateAIVoltageChan
+    nidaq.DAQmxCreateAOVoltageChan
+
 
 Done
 ####
