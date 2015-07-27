@@ -42,6 +42,24 @@ THRESHOLD_CONST = 5
 # self.ChkBox_PL.Bind( wx.EVT_CHECKBOX, self.PlotData )
 
 
+# self.Waveform = waveform
+# self.A = amplitude
+# self.Offset_Before = offset_before
+# self.Offset_After = offset_after
+# self.Duration = duration
+# self.output_samples = sample_frequency
+# self.Voltage_Threshold = voltage_threshold
+# self.time_array = np.array([])
+
+class ExperimentSettings(object):
+    """docstring for ExperimentSettings"""
+
+    def __init__(self, binning, averaging, channel):
+        super(ExperimentSettings, self).__init__()
+        self.binning = binning
+        self.averaging = averaging
+        self.channel = channel
+
 
 class GUIController(gui.MyFrame1):
     """
@@ -93,7 +111,7 @@ class GUIController(gui.MyFrame1):
             Channel = r'ao1'
             # 66 comes from experimental measurements
             Voltage_Threshold = self.Threshold / LOW_HARDWARE_CONST
-            # Voltage_Threshold = 0 #apparently this is an equiptment thing
+            # apparently this is an equiptment thing
         print(self.Channel, self.Channel == r'Low (50mA/V)')
 
         return Channel, Voltage_Threshold
@@ -177,24 +195,27 @@ class GUIController(gui.MyFrame1):
     def GetValues_Standard(self, event):
 
         # TODO: refactor so it obeys DRY
-        self.Intensity = self.CHK_float(self.m_Intensity, event)
         self.Binning = self.CHK_int(self.m_Binning, event)
         self.Averaging = self.CHK_int(self.m_Averaging, event)
+        self.Channel = self.m_Output.GetStringSelection()
+
+
+        self.Intensity = self.CHK_float(self.m_Intensity, event)
         self.Peroid = self.CHK_float(self.m_Period, event)
         self.Offset_Before = self.CHK_float(self.m_Offset_Before, event)
         self.Offset_After = self.CHK_float(self.m_Offset_After, event)
         self.Waveform = self.m_Waveform.GetStringSelection()
-        self.Channel = self.m_Output.GetStringSelection()
         self.Threshold = self.CHK_float(self.m_Threshold, event)
 
     def Make_List_For_Inf_Save(self, event):
 
-        Intensity_v = self.CHK_float(self.m_Intensity, event)
-        Threshold_mA = self.CHK_float(self.m_Threshold, event)
-        Waveform = self.m_Waveform.GetStringSelection()
         Channel = self.m_Output.GetStringSelection()
         Averaging = self.CHK_int(self.m_Averaging, event)
         Measurement_Binning = self.CHK_int(self.m_Binning, event)
+
+        Intensity_v = self.CHK_float(self.m_Intensity, event)
+        Threshold_mA = self.CHK_float(self.m_Threshold, event)
+        Waveform = self.m_Waveform.GetStringSelection()
         Offset_Before_ms = self.CHK_float(self.m_Offset_Before, event)
         Peroid_s = self.CHK_float(self.m_Period, event)
         Offset_After_ms = self.CHK_float(self.m_Offset_After, event)

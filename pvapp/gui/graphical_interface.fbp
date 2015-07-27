@@ -13,7 +13,7 @@
         <property name="first_id">1000</property>
         <property name="help_provider">none</property>
         <property name="internationalize">0</property>
-        <property name="name">Aquring QSSPL data</property>
+        <property name="name">Acquireing QSSPL data</property>
         <property name="namespace"></property>
         <property name="path">.</property>
         <property name="precompiled_header"></property>
@@ -1917,7 +1917,7 @@
                         </object>
                         <object class="notebookpage" expanded="0">
                             <property name="bitmap"></property>
-                            <property name="label">PLCalibration-Self Cosistant</property>
+                            <property name="label">PL Calibration -- Self Consistent</property>
                             <property name="select">0</property>
                             <object class="wxScrolledWindow" expanded="0">
                                 <property name="bg"></property>
