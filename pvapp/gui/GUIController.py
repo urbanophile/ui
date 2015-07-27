@@ -3,7 +3,9 @@ import os  # importing wx files
 from Canvas import CanvasPanel
 import Gui_Main_v2 as gui  # import the newly created GUI file
 from util import utils
+from hardware import daq
 import numpy as np
+
 
 # Magic numbers relating to hardware. They convert sent voltage to current.
 # They are determined by experimental measurement
@@ -249,7 +251,7 @@ class GUIController(gui.MyFrame1):
         if not event.GetSkipped():
 
             #  Then the light pulse is defined, but the lightpulse class
-            light_pulse = LightPulse(
+            light_pulse = daq.LightPulse(
                 self.Waveform,
                 self.Intensity,
                 self.Offset_Before,
@@ -264,7 +266,7 @@ class GUIController(gui.MyFrame1):
             # We put all that info into the take measurement section, which is
             # a instance definition. There are also global variables that
             # go into this
-            Go = TakeMeasurements(
+            Go = daq.TakeMeasurements(
                 light_pulse.complete_waveform,
                 self.Averaging,
                 Channel,
