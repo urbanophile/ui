@@ -103,13 +103,14 @@ class GUIController(gui.MyFrame1):
         self.Fig1 = CanvasPanel(self.Figure1_Panel)
         self.Fig1.labels('Raw Data', 'Time (s)', 'Voltage (V)')
 
-        self.Data = np.array([])
+        self.Data = None
         self.metadata = None
         self.Waveform = None
         # CanvasPanel(self.Figure2_Panel)
         self.dirname = os.getcwd()
         self.data_file = "untitled.dat"
         self.metadata_file = "untitled.inf"
+        self.m_statusBar.SetStatusText("Ready to go!")
 
     def Determine_Digital_Output_Channel(self):
         # Just a simple function choosing the correct output channel
@@ -437,6 +438,13 @@ class GUIController(gui.MyFrame1):
 
     #################
     # Helper methods:
+    def displayError(self, error_description):
+        """
+        Produces error frame in the status bar
+        """
+        self.m_statusBar.SetBackgroundColour('RED')
+        self.m_statusBar.SetStatusText(error_description)
+
     def defaultFileDialogOptions(self):
         """
         Return a dictionary with file dialog options that can be
@@ -486,6 +494,18 @@ class GUIController(gui.MyFrame1):
         dialog.ShowModal()
         dialog.Destroy()
 
+    def onDetermineOffset(self, event):
+        """
+        Opens custom dialog box with interactive offset determination
+        """
+        if self.Data is not None:
+            chgdep = ChangeDepthDialog(None, title='Determine offset interactively')
+            chgdep.ShowModal()
+            chgdep.Destroy()
+        else:
+            self.displayError('No data available')
+
+
     def onInvert(self, event):
         """
         Inverts data based on channel inputs
@@ -501,3 +521,65 @@ class GUIController(gui.MyFrame1):
             print('\n ref ')
 
         self.PlotData(event)
+
+
+class ChangeDepthDialog(wx.Dialog):
+
+    def __init__(self, *args, **kw):
+        super(ChangeDepthDialog, self).__init__(*args, **kw)
+
+        self.InitUI()
+        self.SetSize((250, 200))
+        self.SetTitle("Offsets")
+
+
+    def InitUI(self):
+
+        pnl = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        self.display = wx.TextCtrl(self, style=wx.TE_RIGHT)
+        vbox.Add(self.display, flag=wx.EXPAND|wx.TOP|wx.BOTTOM, border=4)
+        gs = wx.GridSizer(2, 4, 5, 5)
+
+        tc_x_start = wx.TextCtrl(self, style=TE_READONLY)
+        tc_y_start = wx.TextCtrl(self, style=TE_READONLY)
+        tc_x_end = wx.TextCtrl(self, style=TE_READONLY)
+        tc_y_end = wx.TextCtrl(self, style= TE_READONLY)
+
+        x_start_label = wx.StaticText(self, 'x:')
+        y_start_label = wx.StaticText(self, 'y:')
+
+        x_end_label = wx.StaticText(self, 'x:')
+        y_end_label = wx.StaticText(self, 'y:')
+
+
+        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox1.Add(wx.RadioButton(pnl, label='Custom'))
+        hbox1.Add(wx.TextCtrl(pnl), flag=wx.LEFT, border=5)
+        sbs.Add(hbox1)
+
+        pnl.SetSizer(sbs)
+
+        hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        okButton = wx.Button(self, label='Ok')
+        closeButton = wx.Button(self, label='Close')
+        hbox2.Add(okButton)
+        hbox2.Add(closeButton, flag=wx.LEFT, border=5)
+
+        vbox.Add(pnl, proportion=1,
+            flag=wx.ALL|wx.EXPAND, border=5)
+        vbox.Add(hbox2,
+            flag=wx.ALIGN_CENTER|wx.TOP|wx.BOTTOM, border=10)
+
+        self.SetSizer(vbox)
+
+        # event handlers
+        okButton.Bind(wx.EVT_BUTTON, self.OnClose)
+        closeButton.Bind(wx.EVT_BUTTON, self.OnClose)
+
+
+    def OnClose(self, e):
+
+        self.Destroy()
