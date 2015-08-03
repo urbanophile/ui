@@ -131,8 +131,7 @@ class GUIController(gui.MyFrame1):
         """
         Method to handle dialogue window and saving data to file
         """
-        # temp call to GetVAlues
-        getattr(self, 'GetValues_' + self.measurement_type)(event)
+        self.GetValues_Standard(event)
 
         dialog = wx.FileDialog(
             None,
@@ -252,7 +251,7 @@ class GUIController(gui.MyFrame1):
         # first thing is all the inputs are grabbed
         # A check is performed, and if failed, event is skipped
 
-        getattr(self, 'GetValues_' + self.measurement_type)(event)
+        self.GetValues_Standard(event)
 
         # find what channel we are using, and what the voltage offset then is
         Channel, Voltage_Threshold = self.Determine_Digital_Output_Channel()
@@ -373,7 +372,9 @@ class GUIController(gui.MyFrame1):
 
 
     def Num_Data_Points_Update(self, event):
-        # what is the point of this function?
+        """
+        Updates main frame with new data point total
+        """
         self.GetValues_Standard(event)
         time = self.Peroid + self.Offset_Before / 1000 + self.Offset_After / 1000
         num_data = (time * np.float32(daq.DAQmx_InputSampleRate) / self.Binning)[0]
@@ -470,6 +471,7 @@ class GUIController(gui.MyFrame1):
 
             print(self.Data)
             self.PlotData()
+            self.Num_Data_Points_Update(event)
 
     def onExit(self, event):
         self.Close()
@@ -485,10 +487,17 @@ class GUIController(gui.MyFrame1):
         dialog.Destroy()
 
     def onInvert(self, event):
-
+        """
+        Inverts data based on channel inputs
+        """
         if self.ChkBox_PL.GetValue():
             self.Data[:, 3] *= -1
         if self.ChkBox_PC.GetValue():
             self.Data[:, 2] *= -1
+
         if self.ChkBox_Ref.GetValue():
             self.Data[:, 1] *= -1
+            print(self.Data[1, 1], )
+            print('\n ref ')
+
+        self.PlotData(event)
