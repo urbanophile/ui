@@ -3,6 +3,10 @@ import json
 import os
 
 
+def enum(**named_values):
+    return type('Enum', (), named_values)
+
+
 def bin_data(data, bin_amount):
     """
     Returns data where each successive bin_amount data points
@@ -28,9 +32,6 @@ class OutputData():
     """
     This class handles loading and saving file data
     """
-
-    Path = os.getcwd()
-    LoadPath = os.getcwd()
 
     def save_data(self, data, filename, filepath):
         """
@@ -69,3 +70,21 @@ class OutputData():
             metadata_dict = json.loads(file_contents)
 
         return metadata_dict
+
+    def load_data(self, full_filepath):
+        """
+        Loads data file and returns a numpy structured array
+        """
+        data_types = {
+            'names': ("Time (s)", "Generation (V)", "PC (V)", "PL (V)"),
+            'formats': ('f4', 'f4', 'f4', 'f4')
+        }
+
+        data_record = np.loadtxt(
+            full_filepath,
+            #  dtype=data_types,
+            skiprows=1
+        )
+        # TODO: better integrate this into the data object.
+        data_record.view(np.float64).reshape(data_record.shape + (-1,))
+        return data_record

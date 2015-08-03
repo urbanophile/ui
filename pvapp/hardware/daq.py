@@ -30,6 +30,51 @@ DAQmx_Val_Cfg_Default = int32(-1)
 DAQmax_Channels_Number = 3
 
 
+# ### nidaq.DAQmxCreateTask
+# creates a task, which must be later cleared
+# returns a taskHandle object
+
+# ### nidaq.DAQmxCreateAIVoltageChan
+# creates an analog input voltage channel
+
+# ### nidaq.DAQmxCreateAOVoltageChan
+# Creates channel(s) to generate voltage and adds the channel(s) to
+# the task you specify with taskHandle.
+
+# ### nidaq.DAQmxStartTask
+# Transitions the task from the committed state to the running state,
+# which begins measurement or generation.
+
+# ### nidaq.DAQmxStopTask
+# Stops the task and returns it to the state it was in before you
+# called DAQmxStartTask
+
+# ### nidaq.DAQmxClearTask
+# clears the specified task. If the task is currently running, the
+# function first stops thetask and then releases all of its resources.
+
+# ### nidaq.DAQmxReadAnalogF64
+# reads samples from the specified acquisition task.
+
+# ### nidaq.DAQmxWriteAnalogF64
+# The NI-DAQmx Write Function moves samples from the
+# Application Development Environment (ADE) Memory to the PC Buffer in RAM.
+
+# ### nidaq.DAQmxGetErrorString
+# Converts the error number returned
+# by an NI-DAQmx function into a meaningful error message.
+
+# ### nidaq.DAQmxCfgSampClkTiming
+# Your device uses a sample clock to control the rate at which samples
+# are acquired and generated. This sample clock sets the time interval
+#  between samples. Each tick of this clock initiates the acquisition
+# or generation of one sample per channel.
+# This function sets the source of the sample clock, the rate of the
+# sample clock, and the number of samples to acquire or generate
+
+
+
+
 class DAQWrapper(object):
     """docstring for DAQWrapper"""
     def __init__(self, arg):
@@ -425,7 +470,7 @@ class LightPulse():
         return -amplitude * 0.5 * (wave + 1)
 
     # TODO: rename to more  descriptive
-    def MJ(self, time_array, amplitude):
+    def MattiasCustom(self, time_array, amplitude):
         """
         Return t sized array evenly space points on 1/x on log scale
         """
@@ -450,7 +495,7 @@ class LightPulse():
 
     def FrequencyScan(self, number):
         """
-        Custom Mattias function
+        Another custom Mattias function
         """
         Amplitudefreaction = 0.025
         Inital_Time_Delay = 0.01

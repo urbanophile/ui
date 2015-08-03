@@ -22,7 +22,9 @@ HIGH_VOLTAGE_LIMIT = 1.5
 # Constant that works, so the threshold doesn't get to big
 THRESHOLD_CONST = 5
 
-###### EVENT BINDINGS
+MAX_LOCALE_CHAR = 256
+
+# ##### EVENT BINDINGS
 # self.m_scrolledWindow1.Bind( wx.EVT_CHAR, self.Run_Me )
 # self.m_Intensity.Bind( wx.EVT_CHAR, self.onChar )
 # self.m_Intensity.Bind( wx.EVT_TEXT, self.CurrentLimits )
@@ -61,6 +63,7 @@ class ExperimentSettings(object):
         self.binning = binning
         self.averaging = averaging
         self.channel = channel
+        self.inverted_chanels = {}
 
 
 class GUIController(gui.MyFrame1):
@@ -74,6 +77,7 @@ class GUIController(gui.MyFrame1):
     MyFrame1:
     Fig1
     Data
+
     LoadPath
     Path
     measurement_type
@@ -98,9 +102,14 @@ class GUIController(gui.MyFrame1):
 
         self.Fig1 = CanvasPanel(self.Figure1_Panel)
         self.Fig1.labels('Raw Data', 'Time (s)', 'Voltage (V)')
+
         self.Data = np.array([])
+        self.metadata = None
+        self.Waveform = None
         # CanvasPanel(self.Figure2_Panel)
-        self.Path = os.getcwd()
+        self.dirname = os.getcwd()
+        self.data_file = "untitled.dat"
+        self.metadata_file = "untitled.inf"
 
     def Determine_Digital_Output_Channel(self):
         # Just a simple function choosing the correct output channel
@@ -128,7 +137,7 @@ class GUIController(gui.MyFrame1):
         dialog = wx.FileDialog(
             None,
             'Save measurement data and metadata',
-            self.Path,
+            self.dirname,
             '',
             r'DAT and INF files (*.dat;*.inf)|*.inf;*.dat',
             wx.FD_SAVE
@@ -136,16 +145,16 @@ class GUIController(gui.MyFrame1):
 
         if dialog.ShowModal() == wx.ID_OK:
             dialog_path = dialog.GetPath()
-            self.Path = os.path.dirname(dialog_path)
+            self.dirname = os.path.dirname(dialog_path)
             self.SaveName = os.path.splitext(os.path.basename(dialog_path))[0]
 
             metadata_list = self.Make_List_For_Inf_Save(event)
 
-            utils.OutputData().save_data(self.Data, self.SaveName, self.Path)
+            utils.OutputData().save_data(self.Data, self.SaveName, self.dirname)
             utils.OutputData().save_metadata(
                 metadata_list,
                 self.SaveName,
-                self.Path
+                self.dirname
             )
 
         else:
@@ -163,7 +172,7 @@ class GUIController(gui.MyFrame1):
         dialog = wx.FileDialog(
             None,
             'Select a metadata file',
-            self.Path,
+            self.dirname,
             '',
             r'*.inf',
             wx.FD_OPEN
@@ -177,9 +186,7 @@ class GUIController(gui.MyFrame1):
             )
             print(metadata_stringified)
 
-            self.m_Intensity.SetValue(metadata_stringified[u'Intensity_v'])
-            self.m_Threshold.SetValue(metadata_stringified[u'Threshold_mA'])
-            self.m_Waveform.SetStringSelection(metadata_stringified[u'Waveform'])
+            # experimental data
             self.m_Output.SetStringSelection(metadata_stringified[u'Channel'])
             self.m_Averaging.SetValue(metadata_stringified[u'Averaging'])
             try:
@@ -187,20 +194,26 @@ class GUIController(gui.MyFrame1):
             except:
                 self.m_Binning.SetValue(metadata_stringified[u'Binning'])
 
+            # waveform data
+            self.m_Intensity.SetValue(metadata_stringified[u'Intensity_v'])
+            self.m_Threshold.SetValue(metadata_stringified[u'Threshold_mA'])
+            self.m_Waveform.SetStringSelection(metadata_stringified[u'Waveform'])
+
+
             self.m_Offset_Before.SetValue(metadata_stringified[u'Offset_Before_ms'])
-            self.m_Period.SetValue(metadata_stringified[u'Peroid_s'])
             self.m_Offset_After.SetValue(metadata_stringified[u'Offset_After_ms'])
+            self.m_Period.SetValue(metadata_stringified[u'Peroid_s'])
 
         dialog.Destroy()
         event.Skip()
 
+    # rename to
     def GetValues_Standard(self, event):
 
         # TODO: refactor so it obeys DRY
         self.Binning = self.CHK_int(self.m_Binning, event)
         self.Averaging = self.CHK_int(self.m_Averaging, event)
         self.Channel = self.m_Output.GetStringSelection()
-
 
         self.Intensity = self.CHK_float(self.m_Intensity, event)
         self.Peroid = self.CHK_float(self.m_Period, event)
@@ -253,7 +266,7 @@ class GUIController(gui.MyFrame1):
             #  Then the light pulse is defined, but the lightpulse class
             light_pulse = daq.LightPulse(
                 self.Waveform,
-                self.Intensity,
+                self.Intensity,  # intensity is amplitude
                 self.Offset_Before,
                 self.Offset_After,
                 self.Peroid,
@@ -286,27 +299,19 @@ class GUIController(gui.MyFrame1):
 
             self.m_scrolledWindow1.Refresh()
 
-
-
-
     def PlotData(self, e=None):
 
         self.Fig1.clear()
         labels = ['Reference', 'PC', 'PL']
         colours = ['b', 'r', 'g']
 
+        print(self.Data.shape)
+        print(self.Data)
         # this is done not to clog up the plot with many points
         if self.Data.shape[0] > 1000:
             num = self.Data.shape[0] // 1000
         else:
             num = 1
-
-        if self.ChkBox_PL.GetValue():
-            self.Data[:, 3] *= -1
-        if self.ChkBox_PC.GetValue():
-            self.Data[:, 2] *= -1
-        if self.ChkBox_Ref.GetValue():
-            self.Data[:, 1] *= -1
 
         # This plots the figure
         for i, label, colour in zip(self.Data[:, 1:].T, labels, colours):
@@ -324,64 +329,55 @@ class GUIController(gui.MyFrame1):
         if e is not None:
             e.skip()
 
-
-    def onChar(self, event):
-        # This function is for ensuring only numerical values are placed inside the textboxes
+    def charValidator(self, event, acceptable_characters):
+        """
+        Ensures only acceptable_characters values are placed inside textboxes
+        """
         key = event.GetKeyCode()
 
-        # print ord(key)
-        acceptable_characters = "1234567890."
-        if key < 256 and key != 8:
+        # key is in 8bit character set and isn't back
+        if key < MAX_LOCALE_CHAR and key != wx.WXK_BACK:
             if chr(key) in acceptable_characters:
                 event.Skip()
                 return
 
             else:
                 return False
+
         # This is for binding the F2 key to run
-        elif key == 341:
+        elif key == wx.WXK_F2:
             self.Run_Me(event)
             return
         else:
             event.Skip()
             return
+
+    def onChar(self, event):
+        self.charValidator(event, "1234567890.")
+
+    def onChar_int(self, event):
+        self.charValidator(event, "1234567890")
+
+
 
     def Run_Me(self, event):
         # This function is for ensuring only numerical values are placed inside the textboxes
         key = event.GetKeyCode()
 
-        if key == 341:
+        if key == wx.WXK_F2:
             self.Perform_Measurement(event)
         else:
             event.Skip()
             return
 
-    def onChar_int(self, event):
-        # This function is for ensuring only numerical values are placed inside the textboxes
-        key = event.GetKeyCode()
-        # print key
-        # print ord(key)
-        acceptable_characters = "1234567890"
-        if key < 256 and key != 8:
-            if chr(key) in acceptable_characters:
-                event.Skip()
-                return
 
-            else:
-                return False
-        elif key == 341:
-            self.Run_Me(event)
-            return
-        else:
-            event.Skip()
-            return
 
     def Num_Data_Points_Update(self, event):
         # what is the point of this function?
-        getattr(self, 'GetValues_' + self.measurement_type)(event)
+        self.GetValues_Standard(event)
         time = self.Peroid + self.Offset_Before / 1000 + self.Offset_After / 1000
-
-        self.m_DataPoint.SetValue('{0:.2e}'.format((time * float32(DAQmx_InputSampleRate) / self.Binning)[0]))
+        num_data = (time * np.float32(daq.DAQmx_InputSampleRate) / self.Binning)[0]
+        self.m_DataPoint.SetValue('{0:.2e}'.format(num_data))
 
         self.m_Frequency.SetValue('{0:3.3f}'.format(1. / time))
         event.Skip()
@@ -404,6 +400,9 @@ class GUIController(gui.MyFrame1):
         except:
 
             return False
+
+    ##########################
+    # Error Handling functions
 
     def CHK_Voltage_Threshold(self, Voltage_Threshold, event):
         if Voltage_Threshold > self.Intensity:
@@ -434,3 +433,62 @@ class GUIController(gui.MyFrame1):
 
             event.Skip()
             return 0
+
+    #################
+    # Helper methods:
+    def defaultFileDialogOptions(self):
+        """
+        Return a dictionary with file dialog options that can be
+        used in both the save file dialog as well as in the open
+        file dialog.
+        """
+        return dict(message='Choose a file', defaultDir=self.dirname, wildcard='*.*')
+
+    def askUserForFilename(self, **dialogOptions):
+        dialog = wx.FileDialog(self, **dialogOptions)
+        if dialog.ShowModal() == wx.ID_OK:
+            userProvidedFilename = True
+            self.data_file = dialog.GetFilename()
+            self.dirname = dialog.GetDirectory()
+        else:
+            userProvidedFilename = False
+        dialog.Destroy()
+        return userProvidedFilename
+
+    ################
+    # Event Handlers
+    #
+    def onLoadData(self, event):
+        """
+        Handlers loading of new data set into Frame
+        """
+        print("start data loading")
+        if self.askUserForFilename(style=wx.OPEN,
+                                   **self.defaultFileDialogOptions()):
+            fullpath = os.path.join(self.dirname, self.data_file)
+            self.Data = utils.OutputData().load_data(fullpath)
+
+            print(self.Data)
+            self.PlotData()
+
+    def onExit(self, event):
+        self.Close()
+
+    def OnAbout(self, event):
+        dialog = wx.MessageDialog(
+            self,
+            'An PV experimental assistant in wxPython',
+            'About PVapp',
+            wx.OK
+        )
+        dialog.ShowModal()
+        dialog.Destroy()
+
+    def onInvert(self, event):
+
+        if self.ChkBox_PL.GetValue():
+            self.Data[:, 3] *= -1
+        if self.ChkBox_PC.GetValue():
+            self.Data[:, 2] *= -1
+        if self.ChkBox_Ref.GetValue():
+            self.Data[:, 1] *= -1

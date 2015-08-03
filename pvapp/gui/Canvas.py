@@ -1,8 +1,7 @@
 import os
 import wx
-
-from numpy import *
-from matplotlib import *
+import numpy as np
+import matplotlib as plt
 
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
@@ -47,12 +46,17 @@ class CanvasPanel(wx.Panel):
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.sizer.Add(self.canvas,
-                       0,
-                       wx.LEFT | wx.TOP | wx.BOTTOM | wx.GROW)
-        self.sizer.Add(self.chart_toolbar,
-                       1,
-                       wx.LEFT | wx.BOTTOM | wx.TOP | wx.GROW)
+        self.sizer.Add(
+            self.canvas,
+            0,
+            wx.LEFT | wx.TOP | wx.BOTTOM | wx.GROW
+        )
+
+        self.sizer.Add(
+            self.chart_toolbar,
+            1,
+            wx.LEFT | wx.BOTTOM | wx.TOP | wx.GROW
+        )
 
         self.SetSizerAndFit(self.sizer)
 
