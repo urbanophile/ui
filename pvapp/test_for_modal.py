@@ -2,11 +2,15 @@ import wx
 import matplotlib.figure as plt
 # from gui.Canvas import CanvasPanel
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
+from wx.lib.pubsub import pub
 import wx.lib.inspection
 
 ID_OK_BUTTON = wx.NewId()
 ID_CLOSE_BUTTON = wx.NewId()
 
+
+def enum(**enums):
+    return type('Enum', (), enums)
 
 class BoxSizerFrame(wx.Frame):
 
@@ -42,7 +46,7 @@ class BoxSizerPanel(wx.Panel):
         self.figure = plt.Figure()
 
         # action types
-        self.action_types = ['None', 'initial x-offset', 'end x-offset', 'y-offset']
+        self.action_types = ['none', 'start x', 'end x', 'y']
         self.combobox = wx.ComboBox(
             self, choices=self.action_types, style=wx.CB_READONLY
         )
@@ -68,6 +72,7 @@ class BoxSizerPanel(wx.Panel):
         # matplotlib canvas
         axes1 = self.figure.add_subplot(111)
         figure_canvas = FigureCanvas(self, -1, self.figure)
+        self.figure.canvas.mpl_connect('motion_notify_event', self.OnMove)
         self.figure.canvas.mpl_connect('button_press_event', self.OnClick)
 
 
@@ -147,9 +152,6 @@ class BoxSizerPanel(wx.Panel):
         # e.skip()
 
     def OnMove(self, plt_event):
-        pass
-
-    def OnClick(self, plt_event):
         x_coord = plt_event.xdata
         y_coord = plt_event.ydata
         log_format = 'button={0}, x={1}, y={2}, xdata={3}, ydata={4}'
@@ -161,6 +163,21 @@ class BoxSizerPanel(wx.Panel):
             self.tc_x_mouse.SetValue('{0:.2f}'.format(x_coord))
             self.tc_y_mouse.SetValue('{0:.2f}'.format(y_coord))
 
+    def OnClick(self, plt_event):
+        x_coord = plt_event.xdata
+        y_coord = plt_event.ydata
+        log_format = 'button={0}, x={1}, y={2}, xdata={3}, ydata={4}'
+        print(log_format.format(
+            plt_event.button, plt_event.x, plt_event.y,
+            plt_event.xdata, plt_event.ydata
+        ))
+        if x_coord is not None and y_coord is not None:
+            if self.mouse_action == 'start x':
+                self.tc_x_start.SetValue('{0:.2f}'.format(x_coord))
+            elif self.mouse_action == 'end x':
+                self.tc_x_end.SetValue('{0:.2f}'.format(x_coord))
+            elif self.mouse_action == 'y':
+                self.tc_y.SetValue('{0:.2f}'.format(y_coord))
 
     def OnSelect(self, e):
         combo_selection = e.GetString()
