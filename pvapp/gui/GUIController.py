@@ -1,10 +1,12 @@
 import wx
 import os  # importing wx files
-from Canvas import CanvasPanel
-import Gui_Main_v2 as gui  # import the newly created GUI file
+import numpy as np
 from util import utils
 from hardware import daq
-import numpy as np
+from Canvas import CanvasPanel
+from DataPanel import DataPanel
+from FrameSkeleton import FrameSkeleton  # import the newly created GUI file
+from wx.lib.pubsub import pub
 
 
 # Magic numbers relating to hardware. They convert sent voltage to current.
@@ -58,15 +60,15 @@ MAX_LOCALE_CHAR = 256
 class ExperimentSettings(object):
     """docstring for ExperimentSettings"""
 
-    def __init__(self, binning, averaging, channel):
+    def __init__(self):
         super(ExperimentSettings, self).__init__()
-        self.binning = binning
-        self.averaging = averaging
-        self.channel = channel
+        self.binning = None
+        self.averaging = None
+        self.channel = None
         self.inverted_chanels = {}
 
 
-class GUIController(gui.MyFrame1):
+class GUIController(FrameSkeleton):
     """
     Controller to handle interface with wx UI
 
@@ -97,20 +99,44 @@ class GUIController(gui.MyFrame1):
     measurement_type = 'Standard'
 
     def __init__(self, parent):
-        # initialize parent class
-        gui.MyFrame1.__init__(self, parent)
-
-        self.Fig1 = CanvasPanel(self.Figure1_Panel)
-        self.Fig1.labels('Raw Data', 'Time (s)', 'Voltage (V)')
 
         self.Data = None
-        self.metadata = None
+        self.RawData = None
+        self.metadata = ExperimentSettings()
         self.Waveform = None
-        # CanvasPanel(self.Figure2_Panel)
+
+        # setup file data
         self.dirname = os.getcwd()
         self.data_file = "untitled.dat"
         self.metadata_file = "untitled.inf"
-        self.m_statusBar.SetStatusText("Ready to go!")
+
+        self._InitUI(parent)
+        self._InitSubscriptions()
+
+    def _InitUI(self, parent):
+        # initialize parent class
+        FrameSkeleton.__init__(self, parent)
+
+        # setup Matplotlib Canvas panel
+        self.Fig1 = CanvasPanel(self.Figure1_Panel)
+        self.Fig1.labels('Raw Data', 'Time (s)', 'Voltage (V)')
+
+        # make status and menubars
+        menu_bar = wx.MenuBar()
+        m_statusBar = wx.StatusBar(self)
+
+        self.SetMenuBar(menu_bar)
+        self.SetStatusBar(m_statusBar)
+        # self.m_statusBar.SetStatusText("Ready to go!")
+
+        self.m_scrolledWindow1 = wx.ScrolledWindow( self.m_notebook1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.HSCROLL|wx.VSCROLL )
+
+
+    def _InitSubscriptions(self):
+        pub.subscribe(self.onStatusUpdate, 'statusbar.update')
+        pub.subscribe(self.plotHandler, 'update.plot')
+
+
 
     def Determine_Digital_Output_Channel(self):
         # Just a simple function choosing the correct output channel
@@ -243,7 +269,8 @@ class GUIController(gui.MyFrame1):
     def Perform_Standard_Measurement(self, event):
         self.measurement_type = 'Standard'
         self.Perform_Measurement(event)
-        self.PlotData()
+
+        pub.sendMessage('update.plot')
 
     def Perform_Measurement(self, event):
 
@@ -305,7 +332,7 @@ class GUIController(gui.MyFrame1):
         labels = ['Reference', 'PC', 'PL']
         colours = ['b', 'r', 'g']
 
-        print(self.Data.shape)
+        print(self.Data.shape[0])
         print(self.Data)
         # this is done not to clog up the plot with many points
         if self.Data.shape[0] > 1000:
@@ -361,7 +388,8 @@ class GUIController(gui.MyFrame1):
 
 
     def Run_Me(self, event):
-        # This function is for ensuring only numerical values are placed inside the textboxes
+        # This function is for ensuring only numerical values
+        # are placed inside the textboxes
         key = event.GetKeyCode()
 
         if key == wx.WXK_F2:
@@ -377,8 +405,12 @@ class GUIController(gui.MyFrame1):
         Updates main frame with new data point total
         """
         self.GetValues_Standard(event)
+        # what is this definition here?
         time = self.Peroid + self.Offset_Before / 1000 + self.Offset_After / 1000
-        num_data = (time * np.float32(daq.DAQmx_InputSampleRate) / self.Binning)[0]
+
+        # surely this is wrong?
+        # num_data = (time * np.float32(daq.DAQmx_InputSampleRate) / self.Binning)[0]
+        num_data = self.Data.shape[0]
         self.m_DataPoint.SetValue('{0:.2e}'.format(num_data))
 
         self.m_Frequency.SetValue('{0:3.3f}'.format(1. / time))
@@ -438,12 +470,7 @@ class GUIController(gui.MyFrame1):
 
     #################
     # Helper methods:
-    def displayError(self, error_description):
-        """
-        Produces error frame in the status bar
-        """
-        self.m_statusBar.SetBackgroundColour('RED')
-        self.m_statusBar.SetStatusText(error_description)
+
 
     def defaultFileDialogOptions(self):
         """
@@ -478,7 +505,7 @@ class GUIController(gui.MyFrame1):
             self.Data = utils.OutputData().load_data(fullpath)
 
             print(self.Data)
-            self.PlotData()
+            pub.sendMessage('update.plot')
             self.Num_Data_Points_Update(event)
 
     def onExit(self, event):
@@ -499,28 +526,48 @@ class GUIController(gui.MyFrame1):
         Opens custom dialog box with interactive offset determination
         """
         if self.Data is not None:
-            chgdep = ChangeDepthDialog(None, title='Determine offset interactively')
+            title = 'Determine offset interactively'
+            chgdep = ChangeDepthDialog(None, title=title)
             chgdep.ShowModal()
             chgdep.Destroy()
         else:
             self.displayError('No data available')
 
-
-    def onInvert(self, event):
+    def onInvertReference(self, event):
         """
         Inverts data based on channel inputs
         """
-        if self.ChkBox_PL.GetValue():
-            self.Data[:, 3] *= -1
-        if self.ChkBox_PC.GetValue():
-            self.Data[:, 2] *= -1
+        self.Data[:, 1] *= -1
+        if True:
+            raise NotImplementedError()
+        self.inverted_chanels.inverted_channels['reference'] = True
+        pub.sendMessage('update.plot')
 
-        if self.ChkBox_Ref.GetValue():
-            self.Data[:, 1] *= -1
-            print(self.Data[1, 1], )
-            print('\n ref ')
+    def onInvertPC(self, event):
+        """
+        Inverts data based on channel inputs
+        """
+        self.Data[:, 2] *= -1
+        self.inverted_chanels.inverted_channels['pc'] = True
+        pub.sendMessage('update.plot')
 
-        self.PlotData(event)
+    def onInvertPL(self, event):
+        """
+        Inverts data based on channel inputs
+        """
+        self.Data[:, 3] *= -1
+        self.inverted_chanels.inverted_channels['reference'] = True
+        pub.sendMessage('update.plot')
+
+    def onStatusUpdate(self, status, is_error=False):
+
+        self.SetStatusText(status, 0)
+        if is_error:
+            self.m_statusBar.SetBackgroundColour('RED')
+            self.m_statusBar.SetStatusText(status)
+
+    def plotHandler(self):
+        self.PlotData()
 
 
 class ChangeDepthDialog(wx.Dialog):
@@ -587,3 +634,6 @@ class ChangeDepthDialog(wx.Dialog):
     def OnClose(self, e):
 
         self.Destroy()
+
+class DataProcessingPanel(DataPanel):
+    pass

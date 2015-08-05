@@ -1,7 +1,6 @@
 import os
 import wx
 import numpy as np
-import matplotlib as plt
 
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
@@ -28,14 +27,9 @@ class CanvasPanel(wx.Panel):
 
         self.axes = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self, -1, self.figure)
-        self.figure.tight_layout()
 
-        # x = array([0,.5,1])
-        # y = array([0,.5,1])
-        # self.draw_points(x,y)
-
-        # self.canvas.draw()
-        # self.canvas.updateGeometry()
+        # this controls the layout
+        # self.figure.tight_layout()
 
         self.chart_toolbar = MyCustomToolbar(self.canvas)
         tw, th = self.chart_toolbar.GetSizeTuple()
@@ -61,7 +55,7 @@ class CanvasPanel(wx.Panel):
         self.SetSizerAndFit(self.sizer)
 
         self.Fit()
-#        self.Layout()
+        #  self.Layout()
 
         Cursor(self.axes, useblit=True, color='red', linewidth=1)
 
