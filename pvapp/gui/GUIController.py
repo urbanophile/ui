@@ -535,13 +535,12 @@ class ChangeDepthDialog(wx.Dialog):
 
     def InitUI(self):
 
-        pnl = wx.Panel(self)
+        panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        self.display = wx.TextCtrl(self, style=wx.TE_RIGHT)
-        vbox.Add(self.display, flag=wx.EXPAND|wx.TOP|wx.BOTTOM, border=4)
-        gs = wx.GridSizer(2, 4, 5, 5)
+        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox1.Add(wx.RadioButton(pnl, label='Custom'))
+        hbox1.Add(wx.TextCtrl(pnl), flag=wx.LEFT, border=5)
 
         tc_x_start = wx.TextCtrl(self, style=TE_READONLY)
         tc_y_start = wx.TextCtrl(self, style=TE_READONLY)
@@ -554,13 +553,18 @@ class ChangeDepthDialog(wx.Dialog):
         x_end_label = wx.StaticText(self, 'x:')
         y_end_label = wx.StaticText(self, 'y:')
 
+        sb_start = wx.StaticBox(panel, label="Initial Offset")
+        boxsizer_start = wx.StaticBoxSizer(sb, wx.VERTICAL)
 
-        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox1.Add(wx.RadioButton(pnl, label='Custom'))
-        hbox1.Add(wx.TextCtrl(pnl), flag=wx.LEFT, border=5)
-        sbs.Add(hbox1)
+        sb_end = wx.StaticBox(panel, label="Final Offset")
+        boxsizer_end = wx.StaticBoxSizer(sb, wx.VERTICAL)
 
-        pnl.SetSizer(sbs)
+        sb_start.Add(tc_x_start)
+        sb_start.Add(tc_x_start)
+
+
+
+        panel.SetSizer(sbs)
 
         hbox2 = wx.BoxSizer(wx.HORIZONTAL)
         okButton = wx.Button(self, label='Ok')
