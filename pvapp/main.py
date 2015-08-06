@@ -21,12 +21,11 @@ from wx import App
 
 def main():
 
+    # False stands for not redirecting stdin/stdout to window
     app = App(False)
     frame = GUIController(None)
     frame.Show(True)
     app.MainLoop()
 
 if __name__ == "__main__":
-
-    # False stands for not redirecting stdin/stdout to window
     main()

@@ -7,23 +7,32 @@ def enum(**named_values):
     return type('Enum', (), named_values)
 
 
-def bin_data(data, bin_amount):
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def bin_data(data, bin_size):
     """
     Returns data where each successive bin_amount data points
     are grouped together
     """
 
-    if bin_amount == 1:
+    if bin_size == 1:
         return data
     # This is part of a generic binning class that I wrote.
     # It lets binning occur of the first axis for any 2D or 1D array
     if len(data.shape) == 1:
-        data2 = np.zeros((data.shape[0] // bin_amount))
+        data2 = np.zeros((data.shape[0] // bin_size))
     else:
-        data2 = np.zeros((data.shape[0] // bin_amount, data.shape[1]))
+        print('bin size: ', bin_size, '\nshape:', data.shape)
+        data2 = np.zeros((data.shape[0] // bin_size, data.shape[1]))
 
-    for i in range(data.shape[0] // bin_amount):
-        data2[i] = np.mean(data[i * bin_amount:(i + 1) * bin_amount], axis=0)
+    for i in range(data.shape[0] // bin_size):
+        data2[i] = np.mean(data[i * bin_size:(i + 1) * bin_size], axis=0)
 
     return data2
 

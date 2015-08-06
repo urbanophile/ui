@@ -1,5 +1,6 @@
 import wx
 import os  # importing wx files
+import sys
 import numpy as np
 from util import utils
 from hardware import daq
@@ -7,6 +8,9 @@ from Canvas import CanvasPanel
 from DataPanel import DataPanel
 from FrameSkeleton import FrameSkeleton  # import the newly created GUI file
 from wx.lib.pubsub import pub
+
+# TODO: Remove when testing complete
+from test.utils import make_sin_data
 
 
 # Magic numbers relating to hardware. They convert sent voltage to current.
@@ -26,36 +30,6 @@ THRESHOLD_CONST = 5
 
 MAX_LOCALE_CHAR = 256
 
-# ##### EVENT BINDINGS
-# self.m_scrolledWindow1.Bind( wx.EVT_CHAR, self.Run_Me )
-# self.m_Intensity.Bind( wx.EVT_CHAR, self.onChar )
-# self.m_Intensity.Bind( wx.EVT_TEXT, self.CurrentLimits )
-# self.m_Output.Bind( wx.EVT_CHOICE, self.CurrentLimits )
-# self.m_Period.Bind( wx.EVT_CHAR, self.onChar )
-# self.m_Period.Bind( wx.EVT_KILL_FOCUS, self.Num_Data_Points_Update )
-# self.m_Offset_Before.Bind( wx.EVT_CHAR, self.onChar )
-# self.m_Offset_Before.Bind( wx.EVT_KILL_FOCUS, self.Num_Data_Points_Update )
-# self.m_Offset_After.Bind( wx.EVT_CHAR, self.onChar )
-# self.m_Offset_After.Bind( wx.EVT_KILL_FOCUS, self.Num_Data_Points_Update )
-# self.m_Averaging.Bind( wx.EVT_CHAR, self.onChar_int )
-# self.m_Binning.Bind( wx.EVT_CHAR, self.onChar_int )
-# self.m_Binning.Bind( wx.EVT_KILL_FOCUS, self.Num_Data_Points_Update )
-# self.GoButton.Bind( wx.EVT_BUTTON, self.Perform_Standard_Measurement )
-# self.m_Save.Bind( wx.EVT_BUTTON, self.Save )
-# self.m_Load.Bind( wx.EVT_BUTTON, self.Load )
-# self.ChkBox_Ref.Bind( wx.EVT_CHECKBOX, self.PlotData )
-# self.ChkBox_PC.Bind( wx.EVT_CHECKBOX, self.PlotData )
-# self.ChkBox_PL.Bind( wx.EVT_CHECKBOX, self.PlotData )
-
-
-# self.Waveform = waveform
-# self.A = amplitude
-# self.Offset_Before = offset_before
-# self.Offset_After = offset_after
-# self.Duration = duration
-# self.output_samples = sample_frequency
-# self.Voltage_Threshold = voltage_threshold
-# self.time_array = np.array([])
 
 class ExperimentSettings(object):
     """docstring for ExperimentSettings"""
@@ -65,7 +39,17 @@ class ExperimentSettings(object):
         self.binning = None
         self.averaging = None
         self.channel = None
-        self.inverted_chanels = {}
+        self.inverted_channels = {
+            'Reference': True,
+            'PC': False,
+            'PL': True
+        }
+
+CHANNEL_INDEX = {
+    'Reference': 1,
+    'PC': 2,
+    'PL': 3
+}
 
 
 class GUIController(FrameSkeleton):
@@ -100,10 +84,13 @@ class GUIController(FrameSkeleton):
 
     def __init__(self, parent):
 
-        self.Data = None
-        self.RawData = None
+        # TODO: remove when finished testing data Transformations
+        dat = make_sin_data()
+        self.Data = dat
+        self.RawData = dat
         self.metadata = ExperimentSettings()
         self.Waveform = None
+
 
         # setup file data
         self.dirname = os.getcwd()
@@ -112,6 +99,7 @@ class GUIController(FrameSkeleton):
 
         self._InitUI(parent)
         self._InitSubscriptions()
+        self._InitValidators()
 
     def _InitUI(self, parent):
         # initialize parent class
@@ -121,21 +109,56 @@ class GUIController(FrameSkeleton):
         self.Fig1 = CanvasPanel(self.Figure1_Panel)
         self.Fig1.labels('Raw Data', 'Time (s)', 'Voltage (V)')
 
-        # make status and menubars
-        menu_bar = wx.MenuBar()
+        # make status bars
         m_statusBar = wx.StatusBar(self)
 
-        self.SetMenuBar(menu_bar)
         self.SetStatusBar(m_statusBar)
         # self.m_statusBar.SetStatusText("Ready to go!")
 
-        self.m_scrolledWindow1 = wx.ScrolledWindow( self.m_notebook1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.HSCROLL|wx.VSCROLL )
+        self.data_panel = DataProcessingPanel(self.m_notebook1)
 
+        self.m_notebook1.AddPage(
+            self.data_panel,
+            u"Data Processing",
+            True
+        )
+
+        # Setup the Menu
+        menu_bar = wx.MenuBar()
+
+        # File Menu
+        filem = wx.Menu()
+        filem.Append(wx.ID_OPEN, "Open\tCtrl+O")
+        filem.Append(wx.ID_ANY, "Run\tCtrl+R")
+        filem.Append(wx.ID_ABOUT, "About")
+        filem.Append(wx.ID_EXIT, "Exit\tCtrl+X")
+
+        # TODO: add and bind event handlers
+        menu_bar.Append(filem, "&File")
+
+        self.SetMenuBar(menu_bar)
 
     def _InitSubscriptions(self):
+
+        pub.subscribe(self.revertData, 'transform.revert')
+        pub.subscribe(self.invertHandler, 'transform.invert')
+        pub.subscribe(self.fftHandler, 'transform.fft')
+        pub.subscribe(self.binHandler, 'transform.bin')
+        pub.subscribe(self.offsetHandler, 'transform.offset')
+
         pub.subscribe(self.onStatusUpdate, 'statusbar.update')
         pub.subscribe(self.plotHandler, 'update.plot')
+        pub.subscribe(self.plotHandler, 'data.changed')
 
+
+    def _InitValidators(self):
+        pass
+        # self.m_Intensity.Bind( wx.EVT_CHAR, self.onChar )
+        # self.m_Period.Bind( wx.EVT_CHAR, self.onChar )
+        # self.m_Offset_Before.Bind( wx.EVT_CHAR, self.onChar )
+        # self.m_Offset_After.Bind( wx.EVT_CHAR, self.onChar )
+        # self.m_Averaging.Bind( wx.EVT_CHAR, self.onChar_int )
+        # self.m_Binning.Bind( wx.EVT_CHAR, self.onChar_int )
 
 
     def Determine_Digital_Output_Channel(self):
@@ -317,6 +340,7 @@ class GUIController(FrameSkeleton):
             # Using that instance we then run the lights,
             # and measure the outputs
             self.Data = utils.bin_data(Go.Measure(), self.Binning)
+            self.RawData = np.copy(self.Data)
             # self.Data = lightPulse.Define()
             # We then plot the datas, this has to be changed if the plots want
             # to be updated on the fly.
@@ -386,7 +410,6 @@ class GUIController(FrameSkeleton):
         self.charValidator(event, "1234567890")
 
 
-
     def Run_Me(self, event):
         # This function is for ensuring only numerical values
         # are placed inside the textboxes
@@ -399,18 +422,14 @@ class GUIController(FrameSkeleton):
             return
 
 
-
     def Num_Data_Points_Update(self, event):
         """
-        Updates main frame with new data point total
+        Updates main frame with estimated data point total and frequency
         """
         self.GetValues_Standard(event)
-        # what is this definition here?
         time = self.Peroid + self.Offset_Before / 1000 + self.Offset_After / 1000
 
-        # surely this is wrong?
-        # num_data = (time * np.float32(daq.DAQmx_InputSampleRate) / self.Binning)[0]
-        num_data = self.Data.shape[0]
+        num_data = (time * np.float32(daq.DAQmx_InputSampleRate) / self.Binning)[0]
         self.m_DataPoint.SetValue('{0:.2e}'.format(num_data))
 
         self.m_Frequency.SetValue('{0:3.3f}'.format(1. / time))
@@ -491,8 +510,13 @@ class GUIController(FrameSkeleton):
         dialog.Destroy()
         return userProvidedFilename
 
-    ################
-    # Event Handlers
+    ##########################
+    # Model View Event Handlers
+    #
+
+
+    ##########################
+    # App state Event Handlers
     #
     def onLoadData(self, event):
         """
@@ -503,6 +527,7 @@ class GUIController(FrameSkeleton):
                                    **self.defaultFileDialogOptions()):
             fullpath = os.path.join(self.dirname, self.data_file)
             self.Data = utils.OutputData().load_data(fullpath)
+            self.RawData = np.copy(self.Data)
 
             print(self.Data)
             pub.sendMessage('update.plot')
@@ -521,6 +546,19 @@ class GUIController(FrameSkeleton):
         dialog.ShowModal()
         dialog.Destroy()
 
+
+    def onStatusUpdate(self, status, is_error=False):
+
+        self.SetStatusText(status, 0)
+        if is_error:
+            self.m_statusBar.SetBackgroundColour('RED')
+            self.m_statusBar.SetStatusText(status)
+        else:
+            self.m_statusBar.SetStatusText(status)
+
+    def plotHandler(self):
+        self.PlotData()
+
     def onDetermineOffset(self, event):
         """
         Opens custom dialog box with interactive offset determination
@@ -531,43 +569,98 @@ class GUIController(FrameSkeleton):
             chgdep.ShowModal()
             chgdep.Destroy()
         else:
-            self.displayError('No data available')
+            pub.sendMessage(
+                'statusbar.update',
+                'No data available',
+                error=True)
+
+
+    ####################################
+    # Data Transformation Event Handlers
+    #
+
+    def revertData(self):
+        print("Message received: Data reverted")
+        self.Data = np.copy(self.RawData)
+        pub.sendMessage('data.changed')
+
+
+    def invertHandler(self, channel):
+        print(channel, CHANNEL_INDEX[channel])
+        self.Data[:, CHANNEL_INDEX[channel]] *= -1
+        self.metadata.inverted_channels[channel] = not self.metadata.inverted_channels[channel]
+        print(self.Data)
+        print(self.metadata.inverted_channels)
+        pub.sendMessage('data.changed')
+
+    def offsetHandler(self, offset_type=None, offset=None, channel=None):
+        print(offset_type, offset, channel)
+        if offset_type == 'y':
+            index = CHANNEL_INDEX[channel]
+            self.Data[:, index] = self.Data[:, index] + offset
+        elif offset_type == 'start_x':
+            self.Data = self.Data[self.Data[:, 0] > offset, :]
+        elif offset_type == 'end_x':
+            # so this isn't cumulative
+            offset = self.RawData[-1, 0] - offset
+            self.Data = self.Data[self.Data[:, 0] < offset, :]
+        print('hello from offsetHandler')
+        pub.sendMessage('data.changed')
+
+
+    def fftHandler(self, offset_type, distance):
+        pass
+
+    def binHandler(self, bin_size):
+        print('hello from binHandler')
+        self.Data = utils.bin_data(self.Data, bin_size)
+        print(self.Data.size)
+        pub.sendMessage('data.changed')
+
+
+
+class DataProcessingPanel(DataPanel):
+
+    def __init__(self, parent):
+        # initialize parent class
+        DataPanel.__init__(self, parent)
+
+        self.m_yChannelChoice.AppendItems(['Reference', 'PC', 'PL'])
+
+        self.m_startXOffset.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_endXOffset.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_yOffset.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_binSize.SetValidator(NumRangeValidator())
+
+    def onBinData(self, event):
+        num = int(self.m_binSize.GetValue())
+        pub.sendMessage('transform.bin', bin_size=num)
+
+    def onFourierTransform(self, event):
+        pub.sendMessage('transform.fft')
+
+    def onRevertData(self, event):
+        pub.sendMessage('transform.revert')
+
+    def onOffset(self, event):
+        start_x_num = float(self.m_startXOffset.GetValue())
+        end_x_num = float(self.m_endXOffset.GetValue())
+        y_num = float(self.m_yOffset.GetValue())
+        channel = self.m_yChannelChoice.GetStringSelection()
+
+        pub.sendMessage('transform.offset', offset_type='start_x', offset=start_x_num, channel='all')
+        pub.sendMessage('transform.offset', offset_type='end_x', offset=end_x_num, channel='all')
+        pub.sendMessage('transform.offset', offset_type='y', offset=y_num, channel=channel)
 
     def onInvertReference(self, event):
-        """
-        Inverts data based on channel inputs
-        """
-        self.Data[:, 1] *= -1
-        if True:
-            raise NotImplementedError()
-        self.inverted_chanels.inverted_channels['reference'] = True
-        pub.sendMessage('update.plot')
+        pub.sendMessage('transform.invert', channel='Reference')
 
     def onInvertPC(self, event):
-        """
-        Inverts data based on channel inputs
-        """
-        self.Data[:, 2] *= -1
-        self.inverted_chanels.inverted_channels['pc'] = True
-        pub.sendMessage('update.plot')
+        pub.sendMessage('transform.invert', channel='PC')
 
     def onInvertPL(self, event):
-        """
-        Inverts data based on channel inputs
-        """
-        self.Data[:, 3] *= -1
-        self.inverted_chanels.inverted_channels['reference'] = True
-        pub.sendMessage('update.plot')
+        pub.sendMessage('transform.invert', channel='PL')
 
-    def onStatusUpdate(self, status, is_error=False):
-
-        self.SetStatusText(status, 0)
-        if is_error:
-            self.m_statusBar.SetBackgroundColour('RED')
-            self.m_statusBar.SetStatusText(status)
-
-    def plotHandler(self):
-        self.PlotData()
 
 
 class ChangeDepthDialog(wx.Dialog):
@@ -592,7 +685,7 @@ class ChangeDepthDialog(wx.Dialog):
         tc_x_start = wx.TextCtrl(self, style=TE_READONLY)
         tc_y_start = wx.TextCtrl(self, style=TE_READONLY)
         tc_x_end = wx.TextCtrl(self, style=TE_READONLY)
-        tc_y_end = wx.TextCtrl(self, style= TE_READONLY)
+        tc_y_end = wx.TextCtrl(self, style=TE_READONLY)
 
         x_start_label = wx.StaticText(self, 'x:')
         y_start_label = wx.StaticText(self, 'y:')
@@ -608,8 +701,6 @@ class ChangeDepthDialog(wx.Dialog):
 
         sb_start.Add(tc_x_start)
         sb_start.Add(tc_x_start)
-
-
 
         panel.SetSizer(sbs)
 
@@ -632,8 +723,83 @@ class ChangeDepthDialog(wx.Dialog):
 
 
     def OnClose(self, e):
-
         self.Destroy()
 
-class DataProcessingPanel(DataPanel):
-    pass
+
+class NumRangeValidator(wx.PyValidator):
+    """
+    Numeric Validator for a TextCtrl
+    """
+
+    def __init__(self, min_=0, max_=sys.maxint, numeric_type='int'):
+        super(NumRangeValidator, self).__init__()
+        print(numeric_type)
+        if numeric_type == 'int':
+            assert min_ >= 0
+        self._min = min_
+        self._max = max_
+        self.numeric_type = numeric_type
+        if numeric_type == 'int':
+            self.convert_to_num = int
+            self.allow_chars = "-1234567890"
+            self.is_num = lambda x: x.isdigit()
+        elif numeric_type == 'float':
+            self.convert_to_num = float
+            self.allow_chars = "+-.e1234567890"
+            self.is_num = utils.is_float
+
+        # Event management
+        self.Bind(wx.EVT_CHAR, self.OnChar)
+
+    def Clone(self):
+        """Require override"""
+        return NumRangeValidator(self._min, self._max, self.numeric_type)
+
+    def Validate(self, win):
+        """
+        Override to validate window's value
+        Return: Boolean
+        """
+        txtCtrl = self.GetWindow()
+        val = txtCtrl.GetValue()
+        isValid = False
+        if self.is_num(val):
+            digit = self.convert_to_num(val)
+            if digit >= self._min and digit <= self._max:
+                isValid = True
+
+        if not isValid:
+            message = 'Data must be {0} between {1} and {2}'.format(
+                self.numeric_type,
+                self._min,
+                self._max
+            )
+            pub.sendMessage(
+                'statusbar.update',
+                message,
+                error=True
+            )
+            return isValid
+
+    def OnChar(self, event):
+        txtCtrl = self.GetWindow()
+        key = event.GetKeyCode()
+        isDigit = False
+        if key < 256:
+            isValid = chr(key) in self.allow_chars
+        if key in (wx.WXK_RETURN, wx.WXK_DELETE, wx.WXK_BACK) or key > 255 or isValid:
+            event.Skip()
+            return
+
+        if not wx.Validator_IsSilent():
+            # Beep to warn about invalid input
+            wx.Bell()
+        return
+
+    def TransferToWindow(self):
+        """Overridden to skip data transfer"""
+        return True
+
+    def TransferFromWindow(self):
+        """Overridden to skip data transfer"""
+        return True
