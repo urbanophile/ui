@@ -1,6 +1,8 @@
-import wx
+import json
 import os  # importing wx files
 import sys
+import wx
+
 import numpy as np
 from util import utils
 from hardware import daq
@@ -8,6 +10,7 @@ from Canvas import CanvasPanel
 from DataPanel import DataPanel
 from FrameSkeleton import FrameSkeleton  # import the newly created GUI file
 from wx.lib.pubsub import pub
+from ConfigParser import SafeConfigParser
 
 # TODO: Remove when testing complete
 from test.utils import make_sin_data
@@ -31,6 +34,13 @@ THRESHOLD_CONST = 5
 MAX_LOCALE_CHAR = 256
 
 
+CHANNEL_INDEX = {
+    'Reference': 1,
+    'PC': 2,
+    'PL': 3
+}
+
+
 class ExperimentSettings(object):
     """docstring for ExperimentSettings"""
 
@@ -39,17 +49,51 @@ class ExperimentSettings(object):
         self.binning = None
         self.averaging = None
         self.channel = None
+        self.threshold = None
+        self.Voltage_Threshold = None
         self.inverted_channels = {
             'Reference': True,
             'PC': False,
             'PL': True
         }
+        self.sample_rate = np.float32(daq.DAQmx_InputSampleRate)
 
-CHANNEL_INDEX = {
-    'Reference': 1,
-    'PC': 2,
-    'PL': 3
-}
+    def determine_output_channel(self):
+        # Just a simple function choosing the correct output channel
+        # based on the drop down box
+        if self.channel == 'High (2A/V)':
+            self.channel_name = r'ao0'
+            self.voltage_threshold = self.threshold / HIGH_HARDWARD_CONST
+        elif self.channel == r'Low (50mA/V)':
+            self.chanel_name = r'ao1'
+            self.voltage_threshold = self.threshold / LOW_HARDWARE_CONST
+
+        return self.channel_name, self.voltage_threshold
+
+    def get_settings_as_dict(self):
+        meta_data = {
+            'Channel': self.channel,
+            'Averaging': self.averaging,
+            'Measurement_Binning': self.binning,
+            'Threshold_mA': self.threshold,
+            'inverted_channels': self.inverted_channels,
+            'sample_rate': self.sample_rate
+        }
+        return meta_data
+
+
+class ExperimentData(object):
+    """docstring for ExperimentData"""
+    def __init__(self, arg):
+        super(ExperimentData, self).__init__()
+        self.arg = arg
+
+
+class AppController(object):
+    """docstring for AppController"""
+    def __init__(self, arg):
+        super(AppController, self).__init__()
+        self.arg = arg
 
 
 class GUIController(FrameSkeleton):
@@ -58,8 +102,8 @@ class GUIController(FrameSkeleton):
 
     Attributes
     ----------
-    Threshold:
-    Channel:
+
+
     MyFrame1:
     Fig1
     Data
@@ -69,18 +113,7 @@ class GUIController(FrameSkeleton):
     measurement_type
 
 
-    Intensity
-    Binning
-    Averaging
-    Peroid
-    Offset_Before
-    Offset_After
-    Waveform
-    Channel
-    Threshold
     """
-    # constructor
-    measurement_type = 'Standard'
 
     def __init__(self, parent):
 
@@ -88,9 +121,17 @@ class GUIController(FrameSkeleton):
         dat = make_sin_data()
         self.Data = dat
         self.RawData = dat
-        self.metadata = ExperimentSettings()
-        self.Waveform = None
 
+        self.metadata = ExperimentSettings()
+
+        self.lightpulse = daq.LightPulse(
+            waveform='Cos',
+            amplitude=0.5,
+            offset_before=1,
+            offset_after=10,
+            duration=1,
+            voltage_threshold=150
+        )
 
         # setup file data
         self.dirname = os.getcwd()
@@ -139,173 +180,58 @@ class GUIController(FrameSkeleton):
         self.SetMenuBar(menu_bar)
 
     def _InitSubscriptions(self):
-
+        # data transformations
         pub.subscribe(self.revertData, 'transform.revert')
         pub.subscribe(self.invertHandler, 'transform.invert')
         pub.subscribe(self.fftHandler, 'transform.fft')
         pub.subscribe(self.binHandler, 'transform.bin')
         pub.subscribe(self.offsetHandler, 'transform.offset')
 
+        # plot changes
         pub.subscribe(self.onStatusUpdate, 'statusbar.update')
         pub.subscribe(self.plotHandler, 'update.plot')
         pub.subscribe(self.plotHandler, 'data.changed')
 
+        # TODO initialise these views
+        # widget views
+        # pub.subscribe(self.setFrequency, 'waveform.changed')
+        # pub.subscribe(self.setSampleDataPoints, 'settings.changed')
+        # pub.subscribe(self.setPCCalibrationMean, 'pccalibration')
+        # pub.subscribe(self.setPCCalibrationStd, 'pccalibration')
+
+
 
     def _InitValidators(self):
-        pass
-        # self.m_Intensity.Bind( wx.EVT_CHAR, self.onChar )
-        # self.m_Period.Bind( wx.EVT_CHAR, self.onChar )
-        # self.m_Offset_Before.Bind( wx.EVT_CHAR, self.onChar )
-        # self.m_Offset_After.Bind( wx.EVT_CHAR, self.onChar )
-        # self.m_Averaging.Bind( wx.EVT_CHAR, self.onChar_int )
-        # self.m_Binning.Bind( wx.EVT_CHAR, self.onChar_int )
+
+        # Waveform validators
+        self.m_Intensity.SetValidator(NumRangeValidator(numeric_type='int'))
+        self.m_Threshold.SetValidator(NumRangeValidator(numeric_type='int'))
+        self.m_Period.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_Offset_Before.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_Offset_After.SetValidator(NumRangeValidator(numeric_type='float'))
+
+        # Data collection validators
+        self.m_samplingFreq.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_Averaging.SetValidator(NumRangeValidator(numeric_type='int'))
+        self.m_Binning.SetValidator(NumRangeValidator(numeric_type='int'))
 
 
-    def Determine_Digital_Output_Channel(self):
-        # Just a simple function choosing the correct output channel
-        # based on the drop down box
-        if self.Channel == 'High (2A/V)':
-            Channel = r'ao0'
-            # 1840 comes from exp measurements
-            Voltage_Threshold = self.Threshold / HIGH_HARDWARD_CONST
-        elif self.Channel == r'Low (50mA/V)':
-            Channel = r'ao1'
-            # 66 comes from experimental measurements
-            Voltage_Threshold = self.Threshold / LOW_HARDWARE_CONST
-            # apparently this is an equiptment thing
-        print(self.Channel, self.Channel == r'Low (50mA/V)')
-
-        return Channel, Voltage_Threshold
-
-    def Save(self, event):
-        """
-        Method to handle dialogue window and saving data to file
-        """
-        self.GetValues_Standard(event)
-
-        dialog = wx.FileDialog(
-            None,
-            'Save measurement data and metadata',
-            self.dirname,
-            '',
-            r'DAT and INF files (*.dat;*.inf)|*.inf;*.dat',
-            wx.FD_SAVE
-        )
-
-        if dialog.ShowModal() == wx.ID_OK:
-            dialog_path = dialog.GetPath()
-            self.dirname = os.path.dirname(dialog_path)
-            self.SaveName = os.path.splitext(os.path.basename(dialog_path))[0]
-
-            metadata_list = self.Make_List_For_Inf_Save(event)
-
-            utils.OutputData().save_data(self.Data, self.SaveName, self.dirname)
-            utils.OutputData().save_metadata(
-                metadata_list,
-                self.SaveName,
-                self.dirname
-            )
-
-        else:
-            print('Canceled save')
-        dialog.Destroy()
-
-        event.Skip()
 
 
-    def Load(self, event):
-        """
-        Method to handle load metadata dialog window and update metadata state
-        """
+    #################################
+    # Event Handlers for Measurements
 
-        dialog = wx.FileDialog(
-            None,
-            'Select a metadata file',
-            self.dirname,
-            '',
-            r'*.inf',
-            wx.FD_OPEN
-        )
-
-        if dialog.ShowModal() == wx.ID_OK:
-
-            metadata_dict = utils.OutputData().load_metadata(dialog.GetPath())
-            metadata_stringified = dict(
-                [a, str(x)] for a, x in metadata_dict.iteritems()
-            )
-            print(metadata_stringified)
-
-            # experimental data
-            self.m_Output.SetStringSelection(metadata_stringified[u'Channel'])
-            self.m_Averaging.SetValue(metadata_stringified[u'Averaging'])
-            try:
-                self.m_Binning.SetValue(metadata_stringified[u'Measurement_Binning'])
-            except:
-                self.m_Binning.SetValue(metadata_stringified[u'Binning'])
-
-            # waveform data
-            self.m_Intensity.SetValue(metadata_stringified[u'Intensity_v'])
-            self.m_Threshold.SetValue(metadata_stringified[u'Threshold_mA'])
-            self.m_Waveform.SetStringSelection(metadata_stringified[u'Waveform'])
-
-
-            self.m_Offset_Before.SetValue(metadata_stringified[u'Offset_Before_ms'])
-            self.m_Offset_After.SetValue(metadata_stringified[u'Offset_After_ms'])
-            self.m_Period.SetValue(metadata_stringified[u'Peroid_s'])
-
-        dialog.Destroy()
-        event.Skip()
-
-    # rename to
-    def GetValues_Standard(self, event):
-
-        # TODO: refactor so it obeys DRY
-        self.Binning = self.CHK_int(self.m_Binning, event)
-        self.Averaging = self.CHK_int(self.m_Averaging, event)
-        self.Channel = self.m_Output.GetStringSelection()
-
-        self.Intensity = self.CHK_float(self.m_Intensity, event)
-        self.Peroid = self.CHK_float(self.m_Period, event)
-        self.Offset_Before = self.CHK_float(self.m_Offset_Before, event)
-        self.Offset_After = self.CHK_float(self.m_Offset_After, event)
-        self.Waveform = self.m_Waveform.GetStringSelection()
-        self.Threshold = self.CHK_float(self.m_Threshold, event)
-
-    def Make_List_For_Inf_Save(self, event):
-
-        Channel = self.m_Output.GetStringSelection()
-        Averaging = self.CHK_int(self.m_Averaging, event)
-        Measurement_Binning = self.CHK_int(self.m_Binning, event)
-
-        Intensity_v = self.CHK_float(self.m_Intensity, event)
-        Threshold_mA = self.CHK_float(self.m_Threshold, event)
-        Waveform = self.m_Waveform.GetStringSelection()
-        Offset_Before_ms = self.CHK_float(self.m_Offset_Before, event)
-        Peroid_s = self.CHK_float(self.m_Period, event)
-        Offset_After_ms = self.CHK_float(self.m_Offset_After, event)
-        # REFACTOR: this has weird side effects
-        metadata_dict = locals()
-        del metadata_dict['self']
-        del metadata_dict['event']
-        return metadata_dict
-
-    def Perform_Standard_Measurement(self, event):
-        self.measurement_type = 'Standard'
-        self.Perform_Measurement(event)
-
-        pub.sendMessage('update.plot')
 
     def Perform_Measurement(self, event):
-
-        # this is what happens when the go button is pressed
-
-        # first thing is all the inputs are grabbed
+        # all widgets are refreshed
         # A check is performed, and if failed, event is skipped
 
-        self.GetValues_Standard(event)
+
+        self.onWaveformParameters(self, event)
+        self.onCollectionParameters(self, event)
 
         # find what channel we are using, and what the voltage offset then is
-        Channel, Voltage_Threshold = self.Determine_Digital_Output_Channel()
+        Channel, Voltage_Threshold = self.metadata.determine_output_channel()
 
         self.CHK_Voltage_Threshold(Voltage_Threshold, event)
 
@@ -313,127 +239,32 @@ class GUIController(FrameSkeleton):
         self.m_scrolledWindow1.Refresh()
         if not event.GetSkipped():
 
-            #  Then the light pulse is defined, but the lightpulse class
-            light_pulse = daq.LightPulse(
-                self.Waveform,
-                self.Intensity,  # intensity is amplitude
-                self.Offset_Before,
-                self.Offset_After,
-                self.Peroid,
-                Voltage_Threshold
-            )
-
-            print(light_pulse.__repr__())
-            #  We determine what channel to output on
-
             # We put all that info into the take measurement section, which is
             # a instance definition. There are also global variables that
             # go into this
-            Go = daq.TakeMeasurements(
-                light_pulse.complete_waveform,
-                self.Averaging,
+            measurement_handler = daq.MeasurementHandler(
+                self.light_pulse.complete_waveform,
+                self.metadata.averaging,
                 Channel,
-                light_pulse.t[-1]
+                self.light_pulse.t[-1],
+                InputVoltageRange=self.InputVoltageRange
             )
 
-            # print 'here'
             # Using that instance we then run the lights,
             # and measure the outputs
-            self.Data = utils.bin_data(Go.Measure(), self.Binning)
+            self.Data = utils.bin_data(measurement_handler.Measure(), self.metadata.binning)
             self.RawData = np.copy(self.Data)
-            # self.Data = lightPulse.Define()
             # We then plot the datas, this has to be changed if the plots want
             # to be updated on the fly.
 
+            pub.sendMessage('update.plot')
             event.Skip()
         else:
-
             self.m_scrolledWindow1.Refresh()
 
-    def PlotData(self, e=None):
 
-        self.Fig1.clear()
-        labels = ['Reference', 'PC', 'PL']
-        colours = ['b', 'r', 'g']
-
-        print(self.Data.shape[0])
-        print(self.Data)
-        # this is done not to clog up the plot with many points
-        if self.Data.shape[0] > 1000:
-            num = self.Data.shape[0] // 1000
-        else:
-            num = 1
-
-        # This plots the figure
-        for i, label, colour in zip(self.Data[:, 1:].T, labels, colours):
-
-            self.Fig1.draw_points(
-                self.Data[::num, 0],
-                i[::num],
-                '.',
-                Color=colour,
-                Label=label
-            )
-
-        self.Fig1.legend()
-        self.Fig1.update()
-        if e is not None:
-            e.skip()
-
-    def charValidator(self, event, acceptable_characters):
-        """
-        Ensures only acceptable_characters values are placed inside textboxes
-        """
-        key = event.GetKeyCode()
-
-        # key is in 8bit character set and isn't back
-        if key < MAX_LOCALE_CHAR and key != wx.WXK_BACK:
-            if chr(key) in acceptable_characters:
-                event.Skip()
-                return
-
-            else:
-                return False
-
-        # This is for binding the F2 key to run
-        elif key == wx.WXK_F2:
-            self.Run_Me(event)
-            return
-        else:
-            event.Skip()
-            return
-
-    def onChar(self, event):
-        self.charValidator(event, "1234567890.")
-
-    def onChar_int(self, event):
-        self.charValidator(event, "1234567890")
-
-
-    def Run_Me(self, event):
-        # This function is for ensuring only numerical values
-        # are placed inside the textboxes
-        key = event.GetKeyCode()
-
-        if key == wx.WXK_F2:
-            self.Perform_Measurement(event)
-        else:
-            event.Skip()
-            return
-
-
-    def Num_Data_Points_Update(self, event):
-        """
-        Updates main frame with estimated data point total and frequency
-        """
-        self.GetValues_Standard(event)
-        time = self.Peroid + self.Offset_Before / 1000 + self.Offset_After / 1000
-
-        num_data = (time * np.float32(daq.DAQmx_InputSampleRate) / self.Binning)[0]
-        self.m_DataPoint.SetValue('{0:.2e}'.format(num_data))
-
-        self.m_Frequency.SetValue('{0:3.3f}'.format(1. / time))
-        event.Skip()
+    ##########################
+    # Error Handling functions
 
     def CurrentLimits(self, event):
         """
@@ -454,8 +285,6 @@ class GUIController(FrameSkeleton):
 
             return False
 
-    ##########################
-    # Error Handling functions
 
     def CHK_Voltage_Threshold(self, Voltage_Threshold, event):
         if Voltage_Threshold > self.Intensity:
@@ -514,10 +343,178 @@ class GUIController(FrameSkeleton):
     # Model View Event Handlers
     #
 
+    def onSamplingFreq(self, event):
+        pass
+
+
+    def onVoltageRange(self, event):
+        pub.sendMessage('update.plot')
+
+    def PlotData(self, e=None):
+
+        self.Fig1.clear()
+        labels = ['Reference', 'PC', 'PL']
+        colours = ['b', 'r', 'g']
+
+        print(self.Data.shape[0])
+        print(self.Data)
+        # this is done not to clog up the plot with many points
+        if self.Data.shape[0] > 1000:
+            num = self.Data.shape[0] // 1000
+        else:
+            num = 1
+
+        # This plots the figure
+        for i, label, colour in zip(self.Data[:, 1:].T, labels, colours):
+
+            self.Fig1.draw_points(
+                self.Data[::num, 0],
+                i[::num],
+                '.',
+                Color=colour,
+                Label=label
+            )
+
+        self.Fig1.legend()
+        self.Fig1.update()
+        if e is not None:
+            e.skip()
+
+
+    def Num_Data_Points_Update(self, event):
+        """
+        Updates main frame with estimated data point total and frequency
+        """
+        self.onWaveformParameters(self, event)
+        self.onCollectionParameters(self, event)
+        event.Skip()
+
+
+    def onCollectionParameters(self, event):
+        # TODO: refactor so it obeys DRY
+        self.metadata.binning = self.CHK_int(self.m_Binning, event)
+        self.metadata.averaging = self.CHK_int(self.m_Averaging, event)
+        self.metadata.channel = self.m_Output.GetStringSelection()
+        self.metadata.threshold = self.CHK_float(self.m_Threshold, event)
+        self.metadata.sample_rate = self.CHK_float(self.m_samplingFreq, event)
+        estimated_data = (self.metadata.time * self.metadata.sample_rate / self.metadata.binning)[0]
+        self.metadata.sample_data_points = estimated_data
+
+        # pub.subscribe(self.setFrequency, 'waveform.changed')
+
+    def onWaveformParameters(self, event):
+        self.lightpulse.A = self.CHK_float(self.m_Intensity, event)
+        self.lightpulse.Duration = self.CHK_float(self.m_Period, event)
+        self.lightpulse.Offset_Before = self.CHK_float(self.m_Offset_Before, event)
+        self.lightpulse.Offset_After = self.CHK_float(self.m_Offset_After, event)
+        self.lightpulse.Waveform = self.m_Waveform.GetStringSelection()
+
+        # pub.subscribe(self.setSampleDataPoints, 'settings.changed')
+
+    def setPCCalibrationMean(self, pc_calibration_mean):
+        pass
+
+    def setPCCalibrationStd(self, pc_calibration_std):
+        pass
+
+    def setSampleDataPoints(self, sample_data_points):
+        self.m_DataPoint.SetValue('{0:.2e}'.format(sample_data_points))
+
+    def setFrequency(self, frequence_val):
+        self.m_Frequency.SetValue('{0:3.3f}'.format(frequence_val))
+
 
     ##########################
     # App state Event Handlers
     #
+    def onSave(self, event):
+        """
+        Method to handle dialogue window and saving data to file
+        """
+        self.onWaveformParameters(self, event)
+        self.onCollectionParameters(self, event)
+
+
+        dialog = wx.FileDialog(
+            None,
+            'Save measurement data and metadata',
+            self.dirname,
+            '',
+            r'DAT and INF files (*.dat;*.inf)|*.inf;*.dat',
+            wx.FD_SAVE
+        )
+
+        if dialog.ShowModal() == wx.ID_OK:
+            dialog_path = dialog.GetPath()
+            self.dirname = os.path.dirname(dialog_path)
+            self.SaveName = os.path.splitext(os.path.basename(dialog_path))[0]
+
+            metadata_dict = self.Make_List_For_Inf_Save(event)
+
+            experiment_settings = self.metadata.get_settings_as_dict()
+            waveform_settings = self.lightpulse.get_settings_as_dict()
+            metadata_dict = experiment_settings.copy()
+
+            utils.OutputData().save_data(self.Data, self.SaveName, self.dirname)
+            utils.OutputData().save_metadata(
+                metadata_dict,
+                self.SaveName,
+                self.dirname
+            )
+
+        else:
+            print('Canceled save')
+        dialog.Destroy()
+
+        event.Skip()
+
+    def onSaveData(self, event):
+        pass
+
+
+    def onLoad(self, event):
+        """
+        Method to handle load metadata dialog window and update metadata state
+        """
+
+        dialog = wx.FileDialog(
+            None,
+            'Select a metadata file',
+            self.dirname,
+            '',
+            r'*.inf',
+            wx.FD_OPEN
+        )
+
+        if dialog.ShowModal() == wx.ID_OK:
+
+            metadata_dict = utils.OutputData().load_metadata(dialog.GetPath())
+            metadata_stringified = dict(
+                [a, str(x)] for a, x in metadata_dict.iteritems()
+            )
+            print(metadata_stringified)
+
+            # experimental data
+            self.m_Output.SetStringSelection(metadata_stringified[u'Channel'])
+            self.m_Averaging.SetValue(metadata_stringified[u'Averaging'])
+            try:
+                self.m_Binning.SetValue(metadata_stringified[u'Measurement_Binning'])
+            except:
+                self.m_Binning.SetValue(metadata_stringified[u'Binning'])
+            self.m_Threshold.SetValue(metadata_stringified[u'Threshold_mA'])
+
+
+            # waveform data
+            self.m_Intensity.SetValue(metadata_stringified[u'Intensity_v'])
+            self.m_Waveform.SetStringSelection(metadata_stringified[u'Waveform'])
+
+            self.m_Offset_Before.SetValue(metadata_stringified[u'Offset_Before_ms'])
+            self.m_Offset_After.SetValue(metadata_stringified[u'Offset_After_ms'])
+            self.m_Period.SetValue(metadata_stringified[u'Peroid_s'])
+
+        dialog.Destroy()
+        event.Skip()
+
     def onLoadData(self, event):
         """
         Handlers loading of new data set into Frame
@@ -574,27 +571,21 @@ class GUIController(FrameSkeleton):
                 'No data available',
                 error=True)
 
-
     ####################################
     # Data Transformation Event Handlers
     #
 
     def revertData(self):
-        print("Message received: Data reverted")
         self.Data = np.copy(self.RawData)
         pub.sendMessage('data.changed')
 
 
     def invertHandler(self, channel):
-        print(channel, CHANNEL_INDEX[channel])
         self.Data[:, CHANNEL_INDEX[channel]] *= -1
         self.metadata.inverted_channels[channel] = not self.metadata.inverted_channels[channel]
-        print(self.Data)
-        print(self.metadata.inverted_channels)
         pub.sendMessage('data.changed')
 
     def offsetHandler(self, offset_type=None, offset=None, channel=None):
-        print(offset_type, offset, channel)
         if offset_type == 'y':
             index = CHANNEL_INDEX[channel]
             self.Data[:, index] = self.Data[:, index] + offset
@@ -604,7 +595,6 @@ class GUIController(FrameSkeleton):
             # so this isn't cumulative
             offset = self.RawData[-1, 0] - offset
             self.Data = self.Data[self.Data[:, 0] < offset, :]
-        print('hello from offsetHandler')
         pub.sendMessage('data.changed')
 
 
@@ -612,9 +602,7 @@ class GUIController(FrameSkeleton):
         pass
 
     def binHandler(self, bin_size):
-        print('hello from binHandler')
         self.Data = utils.bin_data(self.Data, bin_size)
-        print(self.Data.size)
         pub.sendMessage('data.changed')
 
 
@@ -631,6 +619,24 @@ class DataProcessingPanel(DataPanel):
         self.m_endXOffset.SetValidator(NumRangeValidator(numeric_type='float'))
         self.m_yOffset.SetValidator(NumRangeValidator(numeric_type='float'))
         self.m_binSize.SetValidator(NumRangeValidator())
+
+    #################
+    # UI listeners
+
+    def setDataPoints(self, num_data_points):
+        self.m_DataPoints.SetValue(str(num_data_points))
+
+    def setWaveform(self, waveform_name):
+        self.m_Waveform.SetValue(str(money))
+
+    def setFrequency(self, frequence_val):
+        self.m_Frequency.SetValue(str(frequence_val))
+
+    def setIntensity(self, intensity_val):
+        self.m_Intensity.SetValue(str(intensity_val))
+
+    #################
+    # Event handlers
 
     def onBinData(self, event):
         num = int(self.m_binSize.GetValue())
@@ -731,7 +737,7 @@ class NumRangeValidator(wx.PyValidator):
     Numeric Validator for a TextCtrl
     """
 
-    def __init__(self, min_=0, max_=sys.maxint, numeric_type='int'):
+    def __init__(self, numeric_type='int', min_=0, max_=sys.maxint):
         super(NumRangeValidator, self).__init__()
         print(numeric_type)
         if numeric_type == 'int':

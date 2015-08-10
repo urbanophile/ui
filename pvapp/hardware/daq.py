@@ -1,14 +1,16 @@
 import ctypes
+import json
 import threading
 import numpy as np
 from numpy import pi
 from scipy import signal
-
+from ConfigParser import SafeConfigParser
 
 try:
     nidaq = ctypes.windll.nicaiu  # load the DLL
-except:
-    pass
+except Exception, e:
+    print(e)
+
 ##############################
 # Setup some typedefs and constants
 # to correspond with values in NI-DAQ driver files located
@@ -18,8 +20,14 @@ int32 = ctypes.c_long
 uInt32 = ctypes.c_ulong
 uInt64 = ctypes.c_ulonglong
 float64 = ctypes.c_double
+
+# alias for reasons (???)
 TaskHandle = uInt32
-# the constants
+
+
+config = SafeConfigParser()
+config.read('nidaq.ini')
+
 
 # max is float64(1e6), well its 1.25MS/s/channel
 DAQmx_InputSampleRate = float64(1.2e6)
@@ -100,6 +108,11 @@ class WaveformThread(threading.Thread):
     Attributes
     ----------
 
+    running
+    sampleRate
+    periodLength
+    time
+
     """
 
     DAQmx_Val_Volts = 10348
@@ -110,8 +123,8 @@ class WaveformThread(threading.Thread):
 
     DAQmx_Val_Diff = int32(-1)
 
-    # this controls the input voltage range. (=-10,=-5, =-2,+-1)
-    InputVoltageRange = 10
+    # AllowedInputVoltage = json.loads(config.get("NI-DAQ", "InputVoltageRange"))
+    # InputVoltageRange = 10
 
     # this controls the  output voltage range. Minimum is -5 to 5
     OutputVoltageRange = 5
@@ -119,12 +132,20 @@ class WaveformThread(threading.Thread):
     # this places the points one at a time from each channel, I think
     DAQmx_Val_GroupByScanNumber = 0
 
-    def __init__(self, waveform, Channel, Time):
+    def __init__(self, waveform, Channel, Time, input_voltage_range=10):
+
         self.running = True
         self.sampleRate = DAQmx_OutPutSampleRate
-        # self.periodLength = len( waveform )
         self.periodLength = Time * DAQmx_OutPutSampleRate
         self.Time = Time
+        self.Channel = Channel
+
+        # this controls the input voltage range. (+-10,+-5, +-2,+-1)
+        assert input_voltage_range in [10, 5, 2, 1]
+        self.InputVoltageRange = input_voltage_range
+
+        self.taskHandle_Write = TaskHandle(0)
+        self.taskHandle_Read = TaskHandle(1)
 
         self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
 
@@ -132,11 +153,8 @@ class WaveformThread(threading.Thread):
 
             self.Write_data[i] = waveform[i]
 
-        # plot(self.Write_data)
-        # show()
-        self.taskHandle_Write = TaskHandle(0)
-        self.taskHandle_Read = TaskHandle(1)
-        self.Channel = Channel
+
+        # functions to configure the DAQ
         self.Setup_Write()
         self.Setup_Read(Time)
 
@@ -270,20 +288,22 @@ class WaveformThread(threading.Thread):
         nidaq.DAQmxClearTask(self.taskHandle_Write)
         nidaq.DAQmxClearTask(self.taskHandle_Read)
 
-class TakeMeasurements():
+
+class MeasurementHandler():
     """
     Controller to handle IO from NI datacard
 
     Attributes
     ----------
     """
-    def __init__(self, OutPutVoltage, Averaging, Channel, Time):
+    def __init__(self, OutPutVoltage, Averaging, Channel, Time, InputVoltageRange):
         self.OutPutVoltage = OutPutVoltage
         self.SampleRate = DAQmx_OutPutSampleRate
         self.Time = Time
         self.Averaging = int(Averaging)
         self.Channel = Channel
-
+        self.AllowedInputVoltage = json.loads(config.get("NI-DAQ", "InputVoltageRange"))
+        self.InputVoltageRange
 
     def SingleMeasurement(self):
         """
@@ -292,7 +312,12 @@ class TakeMeasurements():
         """
 
         # start playing waveform
-        mythread = WaveformThread(self.OutPutVoltage, self.Channel, self.Time)
+        mythread = WaveformThread(
+            self.OutPutVoltage,
+            self.Channel,
+            self.Time,
+            self.input_voltage_range
+        )
         mythread.run()
         mythread.stop()
 
@@ -360,10 +385,10 @@ class LightPulse():
         assert duration > 0
         assert offset_after >= 0
         assert offset_before >= 0
-        assert amplitude < 0
+        assert amplitude > 0
 
         self.Waveform = waveform
-        self.A = amplitude
+        self.A = - amplitude
         self.Offset_Before = offset_before
         self.Offset_After = offset_after
         self.Duration = duration
@@ -372,6 +397,8 @@ class LightPulse():
         self.time_array = np.array([])
 
         self.complete_waveform = self.create_waveform()
+
+        self._set_derived_parameters()
 
     def __repr__(self):
         description = (
@@ -383,6 +410,10 @@ class LightPulse():
             self.Voltage_Threshold
         )
         return description
+
+    def _set_derived_parameters(self):
+        self.total_time = self.Duration + self.Offset_Before / 1000 + self.Offset_After / 1000
+        self.frequence_val = 1. / self.total_time
 
     # TODO: should be private method
     def create_waveform(self):
@@ -469,6 +500,12 @@ class LightPulse():
         wave = signal.sawtooth(2 * np.pi * np.linspace(0, 1, t_length), 0.5)
         return -amplitude * 0.5 * (wave + 1)
 
+    def NullWave(self, time_array, amplitude):
+        """
+        Returns t sized array with values -A
+        """
+        return np.zeros((time_array.shape[0]))
+
     # TODO: rename to more  descriptive
     def MattiasCustom(self, time_array, amplitude):
         """
@@ -515,3 +552,12 @@ class LightPulse():
 
         return -V - self.A, T
 
+    def get_settings_as_dict(self):
+        pulse_parameters = {
+            "Intensity_v": self.A,
+            "Waveform": self.Waveform,
+            "Period_s": self.Duration,
+            "Offset_Before_ms": self.Offset_Before,
+            "Offset_After_ms": self.Offset_After
+        }
+        return pulse_parameters
