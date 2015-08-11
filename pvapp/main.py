@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 
 """
@@ -16,15 +17,16 @@ Things to improve:
 """
 
 from gui.GUIController import GUIController
-from wx import App
+import wx
 
 
 def main():
 
     # False stands for not redirecting stdin/stdout to window
-    app = App(False)
+    app = wx.App(False)
     frame = GUIController(None)
     frame.Show(True)
+    wx.lib.inspection.InspectionTool().Show()
     app.MainLoop()
 
 if __name__ == "__main__":

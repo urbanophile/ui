@@ -50,25 +50,24 @@ class ExperimentSettings(object):
         self.averaging = None
         self.channel = None
         self.threshold = None
-        self.Voltage_Threshold = None
+        self.voltage_threshold = None
         self.inverted_channels = {
             'Reference': True,
             'PC': False,
             'PL': True
         }
         self.sample_rate = np.float32(daq.DAQmx_InputSampleRate)
+        self._determine_output_channel
 
-    def determine_output_channel(self):
+    def _determine_output_channel(self):
         # Just a simple function choosing the correct output channel
         # based on the drop down box
         if self.channel == 'High (2A/V)':
             self.channel_name = r'ao0'
             self.voltage_threshold = self.threshold / HIGH_HARDWARD_CONST
         elif self.channel == r'Low (50mA/V)':
-            self.chanel_name = r'ao1'
+            self.channel_name = r'ao1'
             self.voltage_threshold = self.threshold / LOW_HARDWARE_CONST
-
-        return self.channel_name, self.voltage_threshold
 
     def get_settings_as_dict(self):
         meta_data = {
@@ -131,6 +130,14 @@ class GUIController(FrameSkeleton):
             offset_after=10,
             duration=1,
             voltage_threshold=150
+        )
+
+        self.measurement_handler = daq.MeasurementHandler(
+            self.light_pulse.complete_waveform,
+            self.metadata.averaging,
+            Channel,
+            self.light_pulse.t[-1],
+            InputVoltageRange=self.InputVoltageRange
         )
 
         # setup file data
@@ -215,9 +222,6 @@ class GUIController(FrameSkeleton):
         self.m_Averaging.SetValidator(NumRangeValidator(numeric_type='int'))
         self.m_Binning.SetValidator(NumRangeValidator(numeric_type='int'))
 
-
-
-
     #################################
     # Event Handlers for Measurements
 
@@ -226,33 +230,19 @@ class GUIController(FrameSkeleton):
         # all widgets are refreshed
         # A check is performed, and if failed, event is skipped
 
-
         self.onWaveformParameters(self, event)
         self.onCollectionParameters(self, event)
 
         # find what channel we are using, and what the voltage offset then is
-        Channel, Voltage_Threshold = self.metadata.determine_output_channel()
-
-        self.CHK_Voltage_Threshold(Voltage_Threshold, event)
 
         # This the event hasn't been skipped then continue with the code.
         self.m_scrolledWindow1.Refresh()
         if not event.GetSkipped():
 
-            # We put all that info into the take measurement section, which is
-            # a instance definition. There are also global variables that
-            # go into this
-            measurement_handler = daq.MeasurementHandler(
-                self.light_pulse.complete_waveform,
-                self.metadata.averaging,
-                Channel,
-                self.light_pulse.t[-1],
-                InputVoltageRange=self.InputVoltageRange
-            )
-
             # Using that instance we then run the lights,
             # and measure the outputs
-            self.Data = utils.bin_data(measurement_handler.Measure(), self.metadata.binning)
+            raw_data = self.measurement_handler.Measure()
+            self.Data = utils.bin_data(raw_data, self.metadata.binning)
             self.RawData = np.copy(self.Data)
             # We then plot the datas, this has to be changed if the plots want
             # to be updated on the fly.
@@ -261,6 +251,9 @@ class GUIController(FrameSkeleton):
             event.Skip()
         else:
             self.m_scrolledWindow1.Refresh()
+
+    def onPCCalibration(self, event):
+        pass
 
 
     ##########################

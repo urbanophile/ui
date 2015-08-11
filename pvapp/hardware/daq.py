@@ -150,9 +150,7 @@ class WaveformThread(threading.Thread):
         self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
 
         for i in range(self.periodLength):
-
             self.Write_data[i] = waveform[i]
-
 
         # functions to configure the DAQ
         self.Setup_Write()
