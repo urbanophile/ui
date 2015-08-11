@@ -46,18 +46,24 @@ class ExperimentSettings(object):
 
     def __init__(self):
         super(ExperimentSettings, self).__init__()
-        self.binning = None
-        self.averaging = None
-        self.channel = None
-        self.threshold = None
-        self.voltage_threshold = None
+        self.binning = 1
+        self.averaging = 1
+        self.channel = r'Low (50mA/V)'
+        self.threshold = 150.0
+
         self.inverted_channels = {
             'Reference': True,
             'PC': False,
             'PL': True
         }
         self.sample_rate = np.float32(daq.DAQmx_InputSampleRate)
-        self._determine_output_channel
+        self.InputVoltageRange = 10.0
+
+        self.voltage_threshold = None
+        self.channel_name = None
+
+
+        self._determine_output_channel()
 
     def _determine_output_channel(self):
         # Just a simple function choosing the correct output channel
@@ -118,12 +124,12 @@ class GUIController(FrameSkeleton):
 
         # TODO: remove when finished testing data Transformations
         dat = make_sin_data()
-        self.Data = dat
-        self.RawData = dat
+        self.Data = None
+        self.RawData = None
 
         self.metadata = ExperimentSettings()
 
-        self.lightpulse = daq.LightPulse(
+        self.light_pulse = daq.LightPulse(
             waveform='Cos',
             amplitude=0.5,
             offset_before=1,
@@ -135,9 +141,9 @@ class GUIController(FrameSkeleton):
         self.measurement_handler = daq.MeasurementHandler(
             self.light_pulse.complete_waveform,
             self.metadata.averaging,
-            Channel,
-            self.light_pulse.t[-1],
-            InputVoltageRange=self.InputVoltageRange
+            self.metadata.channel_name,
+            self.light_pulse.time_array[-1],
+            self.metadata.InputVoltageRange
         )
 
         # setup file data
@@ -230,27 +236,26 @@ class GUIController(FrameSkeleton):
         # all widgets are refreshed
         # A check is performed, and if failed, event is skipped
 
-        self.onWaveformParameters(self, event)
-        self.onCollectionParameters(self, event)
-
+        self.onWaveformParameters(event)
+        self.onCollectionParameters(event)
+        print("GUIController: Perform_Measurement")
         # find what channel we are using, and what the voltage offset then is
 
         # This the event hasn't been skipped then continue with the code.
         self.m_scrolledWindow1.Refresh()
-        if not event.GetSkipped():
+       
+        print("GUIController: Perform_Measurement - event conditional")
+        # Using that instance we then run the lights,
+        # and measure the outputs
+        raw_data = self.measurement_handler.Measure()
+        self.Data = utils.bin_data(raw_data, self.metadata.binning)
+        self.RawData = np.copy(self.Data)
+        # We then plot the datas, this has to be changed if the plots want
+        # to be updated on the fly.
 
-            # Using that instance we then run the lights,
-            # and measure the outputs
-            raw_data = self.measurement_handler.Measure()
-            self.Data = utils.bin_data(raw_data, self.metadata.binning)
-            self.RawData = np.copy(self.Data)
-            # We then plot the datas, this has to be changed if the plots want
-            # to be updated on the fly.
+        pub.sendMessage('update.plot')
+        event.Skip()
 
-            pub.sendMessage('update.plot')
-            event.Skip()
-        else:
-            self.m_scrolledWindow1.Refresh()
 
     def onPCCalibration(self, event):
         pass
@@ -390,17 +395,17 @@ class GUIController(FrameSkeleton):
         self.metadata.channel = self.m_Output.GetStringSelection()
         self.metadata.threshold = self.CHK_float(self.m_Threshold, event)
         self.metadata.sample_rate = self.CHK_float(self.m_samplingFreq, event)
-        estimated_data = (self.metadata.time * self.metadata.sample_rate / self.metadata.binning)[0]
+        estimated_data = (self.light_pulse.time_array[-1] * self.metadata.sample_rate / self.metadata.binning)
         self.metadata.sample_data_points = estimated_data
 
         # pub.subscribe(self.setFrequency, 'waveform.changed')
 
     def onWaveformParameters(self, event):
-        self.lightpulse.A = self.CHK_float(self.m_Intensity, event)
-        self.lightpulse.Duration = self.CHK_float(self.m_Period, event)
-        self.lightpulse.Offset_Before = self.CHK_float(self.m_Offset_Before, event)
-        self.lightpulse.Offset_After = self.CHK_float(self.m_Offset_After, event)
-        self.lightpulse.Waveform = self.m_Waveform.GetStringSelection()
+        self.light_pulse.A = self.CHK_float(self.m_Intensity, event)
+        self.light_pulse.Duration = self.CHK_float(self.m_Period, event)
+        self.light_pulse.Offset_Before = self.CHK_float(self.m_Offset_Before, event)
+        self.light_pulse.Offset_After = self.CHK_float(self.m_Offset_After, event)
+        self.light_pulse.Waveform = self.m_Waveform.GetStringSelection()
 
         # pub.subscribe(self.setSampleDataPoints, 'settings.changed')
 
@@ -445,7 +450,7 @@ class GUIController(FrameSkeleton):
             metadata_dict = self.Make_List_For_Inf_Save(event)
 
             experiment_settings = self.metadata.get_settings_as_dict()
-            waveform_settings = self.lightpulse.get_settings_as_dict()
+            waveform_settings = self.light_pulse.get_settings_as_dict()
             metadata_dict = experiment_settings.copy()
 
             utils.OutputData().save_data(self.Data, self.SaveName, self.dirname)

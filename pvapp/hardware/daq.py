@@ -26,7 +26,7 @@ TaskHandle = uInt32
 
 
 config = SafeConfigParser()
-config.read('nidaq.ini')
+config.read('hardware/nidaq.ini')
 
 
 # max is float64(1e6), well its 1.25MS/s/channel
@@ -38,9 +38,13 @@ DAQmx_Val_Cfg_Default = int32(-1)
 DAQmax_Channels_Number = 3
 
 
+
+OutputVoltageRange = 5
+
+
 # ### nidaq.DAQmxCreateTask
 # creates a task, which must be later cleared
-# returns a taskHandle object
+# returns a taskHandle obje
 
 # ### nidaq.DAQmxCreateAIVoltageChan
 # creates an analog input voltage channel
@@ -127,12 +131,11 @@ class WaveformThread(threading.Thread):
     # InputVoltageRange = 10
 
     # this controls the  output voltage range. Minimum is -5 to 5
-    OutputVoltageRange = 5
 
     # this places the points one at a time from each channel, I think
     DAQmx_Val_GroupByScanNumber = 0
 
-    def __init__(self, waveform, Channel, Time, input_voltage_range=10):
+    def __init__(self, waveform, Channel, Time, input_voltage_range=10.0):
 
         self.running = True
         self.sampleRate = DAQmx_OutPutSampleRate
@@ -144,6 +147,8 @@ class WaveformThread(threading.Thread):
         assert input_voltage_range in [10, 5, 2, 1]
         self.InputVoltageRange = input_voltage_range
 
+        self.OutputVoltageRange = OutputVoltageRange
+        
         self.taskHandle_Write = TaskHandle(0)
         self.taskHandle_Read = TaskHandle(1)
 
@@ -157,14 +162,18 @@ class WaveformThread(threading.Thread):
         self.Setup_Read(Time)
 
     def Setup_Write(self):
+        print('Waveform: Setup_Write')
+
         # convert waveform to a numpy array
 
         # setup the DAQ hardware
+        print('DAQmxCreateTask')
         self.CHK(nidaq.DAQmxCreateTask(
             "",
             ctypes.byref(self.taskHandle_Write)
         ))
 
+        print('DAQmxCreateAOVoltageChan')
         self.CHK(nidaq.DAQmxCreateAOVoltageChan(
             self.taskHandle_Write,
             "Dev3/" + self.Channel,
@@ -174,7 +183,10 @@ class WaveformThread(threading.Thread):
             self.DAQmx_Val_Volts,
             None
         ))
+        print("OutputVoltageRange: ", self.OutputVoltageRange)
+        print(np.max(self.Write_data))
 
+        print('DAQmxCfgSampClkTiming')
         self.CHK(nidaq.DAQmxCfgSampClkTiming(
             self.taskHandle_Write,
             "/Dev3/ai/SampleClock",
@@ -184,6 +196,7 @@ class WaveformThread(threading.Thread):
             uInt64(self.periodLength)
         ))
 
+        print('DAQmxWriteAnalogF64')
         self.CHK(nidaq.DAQmxWriteAnalogF64(
             self.taskHandle_Write,  # TaskHandel
             int32(self.periodLength),  # num of samples per channel
@@ -195,12 +208,16 @@ class WaveformThread(threading.Thread):
             None
         ))  # reserved
         threading.Thread.__init__(self)
+        print('Finish Setup_Write')
+
 
     def Setup_Read(self, Time):
+        print('Waveform: Setup_Read')
 
         self.max_num_samples = int(np.float32(DAQmx_InputSampleRate) * 3 * Time)
         self.CHK(nidaq.DAQmxCreateTask("", ctypes.byref(self.taskHandle_Read)))
 
+        print('DAQmxCreateAIVoltageChan')
         self.CHK(nidaq.DAQmxCreateAIVoltageChan(
             self.taskHandle_Read,
             "Dev3/ai0:2",
@@ -212,6 +229,7 @@ class WaveformThread(threading.Thread):
             None
         ))
 
+        print('DAQmxCfgSampClkTiming')
         self.CHK(nidaq.DAQmxCfgSampClkTiming(
             self.taskHandle_Read,
             "",
@@ -294,35 +312,49 @@ class MeasurementHandler():
     Attributes
     ----------
     """
-    def __init__(self, OutPutVoltage, Averaging, Channel, Time, InputVoltageRange):
-        self.OutPutVoltage = OutPutVoltage
-        self.SampleRate = DAQmx_OutPutSampleRate
+    def __init__(self, LightPulse, Averaging, Channel, Time, InputVoltageRange, OutPutVoltage=OutputVoltageRange):
+        self.LightPulse = LightPulse
+
         self.Time = Time
         self.Averaging = int(Averaging)
         self.Channel = Channel
+
+        self.OutPutVoltage = OutPutVoltage
         self.AllowedInputVoltage = json.loads(config.get("NI-DAQ", "InputVoltageRange"))
-        self.InputVoltageRange
+        self.input_voltage_range = InputVoltageRange
+
+        self.time = None
+        self.SampleRate = DAQmx_OutPutSampleRate
+
 
     def SingleMeasurement(self):
+
         """
         Sends a single version of waveform to the specified channel
         Returns:
         """
-
+        print("MeasurementHandler: SingleMeasure")
+        print("Voltage range: self.input_voltage_range")
         # start playing waveform
         mythread = WaveformThread(
-            self.OutPutVoltage,
-            self.Channel,
-            self.Time,
-            self.input_voltage_range
+            waveform= self.LightPulse,
+            Channel=self.Channel,
+            Time=self.Time,
+            input_voltage_range=self.input_voltage_range
+            # self.OutPutVoltage,
+
         )
         mythread.run()
         mythread.stop()
 
         self.time = mythread.time
+        print(self.time)
         return mythread.Read_Data
 
+    # TODO: Refactor! this function is such a confusing pain in the ass
     def Average(self):
+        print("MeasurementHandler: Average")
+
         # If there is an error, put this line inside SingleMeasurement
 
         RunningTotal = self.SingleMeasurement()
@@ -334,10 +366,10 @@ class MeasurementHandler():
         return RunningTotal
 
     def Measure(self):
+        print("MeasurementHandler: Measure")
         NUM_CHANNELS = 3.
 
         assert self.Averaging > 0, "Averaging ={0}".format(self.Averaging)
-
         data = self.Average()
         # Here the 3 stands for the number of channels
         # what are going to be read
