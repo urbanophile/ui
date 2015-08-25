@@ -1,0 +1,25 @@
+CHANNELS = ['Reference', 'PC', 'PL']
+CHANNEL_INDEX = {
+    'Reference': 1,
+    'PC': 2,
+    'PL': 3
+}
+INPUT_VOLTAGE_RANGE = ['+/- 10', '+/- 5', '+/- 2', '+/- 1']
+WAVEFORMS = ["Cos", "Sin", "Square",
+             "Triangle", "MattiasCustom", "FrequencyScan"]
+OUTPUTS = ['Low (50mA/V)', 'High (2A/V)']
+
+# Magic numbers relating to hardware. They convert sent voltage to current.
+# They are determined by experimental measurement
+HIGH_HARDWARE_CONST = 1840.
+LOW_HARDWARE_CONST = 66.
+
+# A 10V limit is imposed due to limited the output voltage of the datacard
+LOW_VOLTAGE_LIMIT = 10
+
+# A 1.5V limit is imposed as a limit owing to the current limit of
+# the power supply.
+HIGH_VOLTAGE_LIMIT = 1.5
+
+# Constant that works, so the threshold doesn't get to big
+THRESHOLD_CONST = 5

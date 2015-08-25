@@ -16,16 +16,13 @@ Things to improve:
     Make that you can't load incorrect values (int and floats at least)
 """
 
-from gui.GUIController import GUIController
-import wx
+from gui.GUIController import PVapp
 
 
 def main():
 
     # False stands for not redirecting stdin/stdout to window
-    app = wx.App(False)
-    frame = GUIController(None)
-    frame.Show(True)
+    app = PVapp(False)
     # wx.lib.inspection.InspectionTool().Show()
     app.MainLoop()
 

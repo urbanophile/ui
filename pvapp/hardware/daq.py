@@ -130,25 +130,28 @@ class WaveformThread(threading.Thread):
     # AllowedInputVoltage = json.loads(config.get("NI-DAQ", "InputVoltageRange"))
     # InputVoltageRange = 10
 
-    # this controls the  output voltage range. Minimum is -5 to 5
-
     # this places the points one at a time from each channel, I think
     DAQmx_Val_GroupByScanNumber = 0
 
     def __init__(self, waveform, Channel, Time, input_voltage_range=10.0):
 
+        assert isinstance(waveform, np.ndarray)
+        assert Channel in ['ao1', 'ao0']
+        assert input_voltage_range in [10, 5, 2, 1]
+
+        print("BUG: ", type(DAQmx_OutPutSampleRate), type(Time))
+
         self.running = True
         self.sampleRate = DAQmx_OutPutSampleRate
-        self.periodLength = Time * DAQmx_OutPutSampleRate
-        self.Time = Time
+        self.periodLength = np.float64(Time) * DAQmx_OutPutSampleRate
+        self.Time = float64(Time)
         self.Channel = Channel
 
         # this controls the input voltage range. (+-10,+-5, +-2,+-1)
-        assert input_voltage_range in [10, 5, 2, 1]
         self.InputVoltageRange = input_voltage_range
 
         self.OutputVoltageRange = OutputVoltageRange
-        
+
         self.taskHandle_Write = TaskHandle(0)
         self.taskHandle_Read = TaskHandle(1)
 
@@ -408,22 +411,21 @@ class LightPulse():
         array of waveform intensity values including offsets
     """
 
-    def __init__(self, waveform, amplitude, offset_before, offset_after,
-                 duration, voltage_threshold,
-                 sample_frequency=np.float32(DAQmx_OutPutSampleRate)):
+    def __init__(self, metadata):
 
-        assert duration > 0
-        assert offset_after >= 0
-        assert offset_before >= 0
-        assert amplitude > 0
+        assert metadata.duration > 0
+        assert metadata.offset_after >= 0
+        assert metadata.offset_before >= 0
+        assert metadata.amplitude > 0
+        assert metadata.sample_rate > 0
 
-        self.Waveform = waveform
-        self.A = - amplitude
-        self.Offset_Before = offset_before
-        self.Offset_After = offset_after
-        self.Duration = duration
-        self.output_samples = sample_frequency
-        self.Voltage_Threshold = voltage_threshold
+        self.Waveform = metadata.waveform
+        self.A = - metadata.amplitude
+        self.Offset_Before = metadata.offset_before
+        self.Offset_After = metadata.offset_after
+        self.Duration = metadata.duration
+        self.output_samples = np.float32(metadata.sample_rate)
+        self.Voltage_Threshold = metadata.voltage_threshold
         self.time_array = np.array([])
 
         self.complete_waveform = self.create_waveform()
@@ -460,7 +462,7 @@ class LightPulse():
 
         if self.Waveform == 'FrequencyScan':
             # TODO: this is bad refactor
-            result = getattr(self, self.Waveform)(self.Duration)
+            result = self.FrequencyScan(self.Duration)
             voltage_waveform, self.time_array = result[0], result[1]
             voltage_waveform -= self.Voltage_Threshold
 
@@ -591,3 +593,9 @@ class LightPulse():
             "Offset_After_ms": self.Offset_After
         }
         return pulse_parameters
+
+    def get_total_duration(self):
+        return self.Duration + self.Offset_Before + self.Offset_After
+
+    def last_t(self):
+        return self.time_array[-1]
