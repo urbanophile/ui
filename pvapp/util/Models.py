@@ -118,7 +118,7 @@ class ExperimentData(object):
         super(ExperimentData, self).__init__()
 
         # make secondary dataset
-        data = make_sin_data()
+        data = make_sin_data(duration=100)
 
         self.Data = data
         self.RawData = data
