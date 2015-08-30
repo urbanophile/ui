@@ -505,8 +505,8 @@ class DataProcessingPanel(DataPanel):
 
         self.m_yChannelChoice.AppendItems(CHANNELS)
 
-        self.m_startXOffset.SetValidator(NumRangeValidator(numeric_type='float'))
-        self.m_endXOffset.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_leftCropDistance.SetValidator(NumRangeValidator(numeric_type='float'))
+        self.m_rightCropDistance.SetValidator(NumRangeValidator(numeric_type='float'))
         self.m_yOffset.SetValidator(NumRangeValidator(numeric_type='float'))
         self.m_binSize.SetValidator(NumRangeValidator())
         self.m_fftChoice.AppendItems(CHANNELS)
@@ -540,15 +540,16 @@ class DataProcessingPanel(DataPanel):
         pub.sendMessage('transform.revert')
         pub.sendMessage('data.changed')
 
-    def onOffset(self, event):
-        """ Offset should be determined as mean over selected period"""
-        start_x_num = float(self.m_startXOffset.GetValue())
-        end_x_num = float(self.m_endXOffset.GetValue())
-        y_num = float(self.m_yOffset.GetValue())
-        channel = self.m_yChannelChoice.GetStringSelection()
-
+    def onCrop(self, event):
+        start_x_num = float(self.m_leftCropDistance.GetValue())
+        end_x_num = float(self.m_rightCropDistance.GetValue())
         pub.sendMessage('transform.offset', offset_type='start_x', offset=start_x_num, channel='all')
         pub.sendMessage('transform.offset', offset_type='end_x', offset=end_x_num, channel='all')
+
+    def onOffset(self, event):
+        """ Offset should be determined as mean over selected period"""
+        y_num = float(self.m_yOffset.GetValue())
+        channel = self.m_yChannelChoice.GetStringSelection()
         pub.sendMessage('transform.offset', offset_type='y', offset=y_num, channel=channel)
 
     def onInvertReference(self, event):
@@ -562,4 +563,3 @@ class DataProcessingPanel(DataPanel):
     def onInvertPL(self, event):
         pub.sendMessage('transform.invert', channel='PL')
         pub.sendMessage('data.changed')
-

@@ -37,7 +37,7 @@
             <property name="minimum_size"></property>
             <property name="name">FrameSkeleton</property>
             <property name="pos"></property>
-            <property name="size">1255,650</property>
+            <property name="size">1255,675</property>
             <property name="style">wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER</property>
             <property name="subclass"></property>
             <property name="title">PVapp </property>
