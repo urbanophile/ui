@@ -1,11 +1,11 @@
 import ctypes
-import json
 import threading
 import numpy as np
 from numpy import pi
 from scipy import signal
-from ConfigParser import SafeConfigParser
-
+from util.Constants import (
+    CHANNEL_INDEX
+)
 try:
     nidaq = ctypes.windll.nicaiu  # load the DLL
 except Exception, e:
@@ -25,10 +25,6 @@ float64 = ctypes.c_double
 TaskHandle = uInt32
 
 
-config = SafeConfigParser()
-config.read('hardware/nidaq.ini')
-
-
 # max is float64(1e6), well its 1.25MS/s/channel
 DAQmx_InputSampleRate = float64(1.2e6)
 DAQmx_OutPutSampleRate = float64(1.2e6)  # Its 3.33MS/s
@@ -36,8 +32,6 @@ DAQmx_OutPutSampleRate = float64(1.2e6)  # Its 3.33MS/s
 # Constants associated with NI-DAQmx
 DAQmx_Val_Cfg_Default = int32(-1)
 DAQmax_Channels_Number = 3
-
-
 
 OutputVoltageRange = 5
 
@@ -138,13 +132,13 @@ class WaveformThread(threading.Thread):
         assert isinstance(waveform, np.ndarray)
         assert Channel in ['ao1', 'ao0']
         assert input_voltage_range in [10, 5, 2, 1]
+        assert isinstance(Time, np.float64)
 
-        print("BUG: ", type(DAQmx_OutPutSampleRate), type(Time))
 
         self.running = True
         self.sampleRate = DAQmx_OutPutSampleRate
-        self.periodLength = np.float64(Time) * DAQmx_OutPutSampleRate
-        self.Time = float64(Time)
+        self.periodLength = Time * DAQmx_OutPutSampleRate
+        self.Time = Time
         self.Channel = Channel
 
         # this controls the input voltage range. (+-10,+-5, +-2,+-1)
@@ -318,12 +312,11 @@ class MeasurementHandler():
     def __init__(self, LightPulse, Averaging, Channel, Time, InputVoltageRange, OutPutVoltage=OutputVoltageRange):
         self.LightPulse = LightPulse
 
-        self.Time = Time
+        self.Time = np.float64(Time)
         self.Averaging = int(Averaging)
         self.Channel = Channel
 
         self.OutPutVoltage = OutPutVoltage
-        self.AllowedInputVoltage = json.loads(config.get("NI-DAQ", "InputVoltageRange"))
         self.input_voltage_range = InputVoltageRange
 
         self.time = None
@@ -340,7 +333,7 @@ class MeasurementHandler():
         print("Voltage range: self.input_voltage_range")
         # start playing waveform
         mythread = WaveformThread(
-            waveform= self.LightPulse,
+            waveform=self.LightPulse,
             Channel=self.Channel,
             Time=self.Time,
             input_voltage_range=self.input_voltage_range

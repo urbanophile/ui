@@ -4,7 +4,12 @@ CHANNEL_INDEX = {
     'PC': 2,
     'PL': 3
 }
-INPUT_VOLTAGE_RANGE = ['+/- 10', '+/- 5', '+/- 2', '+/- 1']
+
+INPUT_VOLTAGE_RANGE = [10, 5, 2, 1]
+INPUT_VOLTAGE_RANGE_STR = ['+/- 10', '+/- 5', '+/- 2', '+/- 1']
+
+OUTPUT_VOLTAGE_RANGE = 5
+
 WAVEFORMS = ["Cos", "Sin", "Square",
              "Triangle", "MattiasCustom", "FrequencyScan"]
 OUTPUTS = ['Low (50mA/V)', 'High (2A/V)']

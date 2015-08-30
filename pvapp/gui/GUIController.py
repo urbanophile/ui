@@ -4,7 +4,7 @@ import wx
 from util import utils
 from util.Constants import (
     CHANNELS,
-    INPUT_VOLTAGE_RANGE,
+    INPUT_VOLTAGE_RANGE_STR,
     WAVEFORMS,
     OUTPUTS
 )
@@ -191,7 +191,7 @@ class GUIController(FrameSkeleton):
         self.SetMenuBar(menu_bar)
 
         # initialise view with model parameters
-        self.m_voltageRange.AppendItems(INPUT_VOLTAGE_RANGE)
+        self.m_voltageRange.AppendItems(INPUT_VOLTAGE_RANGE_STR)
         self.m_Waveform.AppendItems(WAVEFORMS)
         self.m_Output.AppendItems(OUTPUTS)
 
@@ -541,6 +541,7 @@ class DataProcessingPanel(DataPanel):
         pub.sendMessage('data.changed')
 
     def onOffset(self, event):
+        """ Offset should be determined as mean over selected period"""
         start_x_num = float(self.m_startXOffset.GetValue())
         end_x_num = float(self.m_endXOffset.GetValue())
         y_num = float(self.m_yOffset.GetValue())
