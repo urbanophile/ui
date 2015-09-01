@@ -48,6 +48,10 @@ class ExperimentSettings(object):
         self.voltage_threshold = 150.0
         self.channel_name = None
 
+        #
+        self.pc_calibration_mean = 0
+        self.pc_calibration_std = 0
+
         self._determine_output_channel()
 
     def _determine_output_channel(self):
@@ -110,6 +114,10 @@ class ExperimentSettings(object):
 
     def get_total_data_points(self):
         return (self.get_total_time() * self.sample_rate / self.binning)
+
+    def update_pc_calibration_data(self, data):
+            self.pc_calibration_mean = np.mean(data[:, CHANNEL_INDEX['PC']])
+            self.pc_calibration_std = np.std(data[:, CHANNEL_INDEX['PC']])
 
 
 class ExperimentData(object):

@@ -489,8 +489,9 @@ class LightPulse():
         """
         #  everything is reversed because amplitude is negative
         max_voltage = np.amax(abs(voltage_waveform))
-        scale_factor = (max_voltage - self.Voltage_Threshold) / max_voltage
-        voltage_waveform *= scale_factor * voltage_waveform
+        if np.abs(max_voltage) > 0:
+            scale_factor = (max_voltage - self.Voltage_Threshold) / max_voltage
+            voltage_waveform *= scale_factor * voltage_waveform
         voltage_waveform -= self.Voltage_Threshold
         return voltage_waveform
 

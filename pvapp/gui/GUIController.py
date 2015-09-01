@@ -1,5 +1,6 @@
 import os  # importing wx files
 import wx
+import copy
 
 from util import utils
 from util.Constants import (
@@ -14,6 +15,7 @@ from DataPanel import DataPanel
 from Validator import NumRangeValidator
 from util.Models import ExperimentData, ExperimentSettings
 # import sys
+
 
 from FrameSkeleton import FrameSkeleton  # import the newly created GUI file
 from wx.lib.pubsub import pub
@@ -115,7 +117,30 @@ class PlaceholderController(object):
 
     def onPCCalibration(self, event):
         print('onPCCalibration')
+        self.view.ShowCalibrationModal()
 
+        null_metadata = copy.deepcopy(self.view.metadata)
+        null_metadata.waveform = "NullWave"
+        null_metadata.averaging = 1
+
+        null_pulse = daq.LightPulse(null_metadata)
+
+        # Using that instance we then run the lights,
+        # and measure the outputs
+        measurement_handler = daq.MeasurementHandler(
+            null_pulse.complete_waveform,
+            null_metadata.averaging,
+            null_metadata.channel_name,
+            null_metadata.get_total_time(),
+            null_metadata.InputVoltageRange
+        )
+
+        calibration_data = measurement_handler.Measure()
+        self.view.metadata.update_pc_calibration_data(calibration_data)
+        # We then plot the datas, this has to be changed if the plots want
+        # to be updated on the fly.
+
+        pub.sendMessage('calibration.pc')
 
 # hybrid view/controller
 class GUIController(FrameSkeleton):
@@ -212,11 +237,15 @@ class GUIController(FrameSkeleton):
         self.m_Averaging.SetValidator(NumRangeValidator(numeric_type='int'))
         self.m_Binning.SetValidator(NumRangeValidator(numeric_type='int'))
 
-    def setPCCalibrationMean(self, pc_mean):
-        self.m_pcCalibrationMean.SetValue('{0:3.3f}'.format(pc_mean))
+    def setPCCalibrationMean(self):
+        self.m_pcCalibrationMean.SetValue('{0:3.3f}'.format(
+            self.metadata.pc_calibration_mean
+        ))
 
-    def setPCCalibrationStd(self, pc_std):
-        self.m_pcCalibrationStd.SetValue('{0:3.3f}'.format(pc_std))
+    def setPCCalibrationStd(self):
+        self.m_pcCalibrationStd.SetValue('{0:3.3f}'.format(
+            self.metadata.pc_calibration_std
+        ))
 
     def setSampleDataPoints(self, sample_data_points):
         self.m_DataPoint.SetValue('{0:.2e}'.format(sample_data_points))
@@ -224,20 +253,18 @@ class GUIController(FrameSkeleton):
     def setFrequency(self, frequence_val):
         self.m_Frequency.SetValue('{0:3.3f}'.format(frequence_val))
 
-
     def setWaveformParameters(self):
-        self.m_Binning.SetValue(str(self.metadata.binning))
-        self.m_Averaging.SetValue(str(self.metadata.averaging))
-        self.m_Threshold.SetValue(str(self.metadata.threshold))
-        self.m_samplingFreq.SetValue(str(self.metadata.sample_rate))
-
-        self.setFrequency(self.metadata.get_frequency())
-
-    def setCollectionParameters(self):
         self.m_Intensity.SetValue(str(self.metadata.amplitude))
         self.m_Period.SetValue(str(self.metadata.duration))
         self.m_Offset_Before.SetValue(str(self.metadata.offset_before))
         self.m_Offset_After.SetValue(str(self.metadata.offset_after))
+        self.setFrequency(self.metadata.get_frequency())
+
+    def setCollectionParameters(self):
+        self.m_Binning.SetValue(str(self.metadata.binning))
+        self.m_Averaging.SetValue(str(self.metadata.averaging))
+        self.m_Threshold.SetValue(str(self.metadata.threshold))
+        self.m_samplingFreq.SetValue(str(self.metadata.sample_rate))
 
         self.setSampleDataPoints(self.metadata.get_total_data_points())
 
@@ -266,6 +293,7 @@ class GUIController(FrameSkeleton):
 
         pub.sendMessage('update.plot')
 
+
     def fftHandler(self):
         channel = self.data_panel.m_fftChoice.GetStringSelection()
         freq_data = self.Data.fftOperator(channel, self.metadata.get_total_time())
@@ -293,8 +321,6 @@ class GUIController(FrameSkeleton):
         self.metadata.sample_data_points = self.metadata.get_total_data_points()
 
         pub.sendMessage('collection.change')
-
-
 
     ##########################
     # Plot Handlers
@@ -354,6 +380,12 @@ class GUIController(FrameSkeleton):
         dialog.Destroy()
         return userProvidedFilename
 
+    def ShowCalibrationModal(self):
+        msg_text = (
+            "Please remove sample from measurement area\n"
+            "Only one PC calibration is necessary per experimental session"
+        )
+        wx.MessageBox(msg_text, 'Info', wx.OK | wx.ICON_INFORMATION)
 
     ##########################
     # App state Event Handlers
