@@ -37,17 +37,17 @@ def bin_data(data, bin_size):
     return data2
 
 
-def save_data(self, data, filename, filepath):
+def save_data(data, filename, filepath):
     """
     Writes experimental data to TSV file
     """
 
     variables = 'Time (s)\tGeneration (V)\tPC (V)\tPL (V)'
-    full_path = os.path.join(filepath, filename + '.dat')
+    full_path = os.path.join(filepath, filename + '.tsv')
     np.savetxt(full_path, data, delimiter='\t', header=variables)
 
 
-def save_metadata(self, metadata_dict, filename, filepath):
+def save_metadata(metadata_dict, filename, filepath):
     """
     Writes experimental metadata to JSON file
     """

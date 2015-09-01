@@ -4,7 +4,8 @@ import numpy as np
 from numpy import pi
 from scipy import signal
 from util.Constants import (
-    MAX_OUTPUT_SAMPLE_RATE,
+    # MAX_OUTPUT_SAMPLE_RATE,
+    MAX_INPUT_SAMPLE_RATE,
     CHANNELS
 )
 
@@ -27,7 +28,9 @@ float64 = ctypes.c_double
 TaskHandle = uInt32
 
 # converted to ctype floats for use with the DLL
-DAQmx_OutPutSampleRate = float64(MAX_OUTPUT_SAMPLE_RATE)
+# DAQmx_OutPutSampleRate = float64(MAX_OUTPUT_SAMPLE_RATE)
+DAQmx_InputSampleRate = float64(MAX_INPUT_SAMPLE_RATE)
+
 
 # Constants associated with NI-DAQmx
 DAQmx_Val_Cfg_Default = int32(-1)

@@ -403,8 +403,6 @@ class GUIController(FrameSkeleton):
             self.dirname = os.path.dirname(dialog_path)
             self.SaveName = os.path.splitext(os.path.basename(dialog_path))[0]
 
-            metadata_dict = self.Make_List_For_Inf_Save(event)
-
             experiment_settings = self.metadata.get_settings_as_dict()
             waveform_settings = self.light_pulse.get_settings_as_dict()
             metadata_dict = experiment_settings.copy()
@@ -424,6 +422,13 @@ class GUIController(FrameSkeleton):
 
     def onSaveData(self, event):
         print("onSaveData")
+        if self.askUserForFilename(style=wx.SAVE,
+                                   **self.defaultFileDialogOptions()):
+            utils.save_data(self.Data.Data, self.data_file, self.dirname)
+
+        # print(filename)
+        # fullpath = os.path.join(self.dirname, self.data_file)
+        # self.Data.updateRawData(utils.load_data(fullpath))
 
 
     def onLoad(self, event):
