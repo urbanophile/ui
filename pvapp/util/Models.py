@@ -2,23 +2,19 @@
 import scipy
 import numpy as np
 import scipy.fftpack
-
 from util import utils
-from hardware import daq
-
-
-# TODO: Remove when testing complete
-from test.utils import make_sin_data
 from util.Constants import (
     CHANNEL_INDEX,
     LOW_VOLTAGE_LIMIT,
     HIGH_VOLTAGE_LIMIT,
     THRESHOLD_CONST,
     HIGH_HARDWARE_CONST,
-    LOW_HARDWARE_CONST
+    LOW_HARDWARE_CONST,
+    MAX_INPUT_SAMPLE_RATE,
 )
-# Magic numbers relating to hardware. They convert sent voltage to current.
-# They are determined by experimental measurement
+
+# TODO: Remove when testing complete
+from test.utils import make_sin_data
 
 
 class ExperimentSettings(object):
@@ -36,8 +32,10 @@ class ExperimentSettings(object):
             'PC': False,
             'PL': True
         }
-        self.sample_rate = float(np.float32(daq.DAQmx_InputSampleRate))
+
+        self.sample_rate = MAX_INPUT_SAMPLE_RATE
         self.InputVoltageRange = 10.0
+        self.OutputVoltageRange = 5
 
         self.waveform = 'Cos'
         self.amplitude = 0.5
@@ -93,6 +91,17 @@ class ExperimentSettings(object):
                 self._voltage_threshold = v_threshold
         else:
             self._voltage_threshold = v_threshold
+
+    @property
+    def sample_rate(self):
+        return self._sample_rate
+
+    @sample_rate.setter
+    def sample_rate(self, s_rate):
+        if s_rate > MAX_INPUT_SAMPLE_RATE:
+            self._sample_rate = MAX_INPUT_SAMPLE_RATE
+        else:
+            self._sample_rate = s_rate
 
     def get_settings_as_dict(self):
         meta_data = {

@@ -129,10 +129,7 @@ class PlaceholderController(object):
         # and measure the outputs
         measurement_handler = daq.MeasurementHandler(
             null_pulse.complete_waveform,
-            null_metadata.averaging,
-            null_metadata.channel_name,
-            null_metadata.get_total_time(),
-            null_metadata.InputVoltageRange
+            null_metadata
         )
 
         calibration_data = measurement_handler.Measure()
@@ -279,10 +276,7 @@ class GUIController(FrameSkeleton):
         # and measure the outputs
         self.measurement_handler = daq.MeasurementHandler(
             self.light_pulse.complete_waveform,
-            self.metadata.averaging,
-            self.metadata.channel_name,
-            self.metadata.get_total_time(),
-            self.metadata.InputVoltageRange
+            self.metadata
         )
 
         raw_data = self.measurement_handler.Measure()

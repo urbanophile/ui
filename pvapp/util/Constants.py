@@ -14,6 +14,9 @@ WAVEFORMS = ["Cos", "Sin", "Square",
              "Triangle", "MattiasCustom", "FrequencyScan"]
 OUTPUTS = ['Low (50mA/V)', 'High (2A/V)']
 
+
+# These values are specific to NI-DAQmx
+
 # Magic numbers relating to hardware. They convert sent voltage to current.
 # They are determined by experimental measurement
 HIGH_HARDWARE_CONST = 1840.
@@ -28,3 +31,9 @@ HIGH_VOLTAGE_LIMIT = 1.5
 
 # Constant that works, so the threshold doesn't get to big
 THRESHOLD_CONST = 5
+
+
+# Max is float64(1e6), well its 1.25MS/s/channel
+MAX_INPUT_SAMPLE_RATE = 1.2e6
+# It's 3.33MS/s
+MAX_OUTPUT_SAMPLE_RATE = 1.2e6

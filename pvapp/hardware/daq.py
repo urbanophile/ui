@@ -4,8 +4,10 @@ import numpy as np
 from numpy import pi
 from scipy import signal
 from util.Constants import (
-    CHANNEL_INDEX
+    MAX_OUTPUT_SAMPLE_RATE,
+    CHANNELS
 )
+
 try:
     nidaq = ctypes.windll.nicaiu  # load the DLL
 except Exception, e:
@@ -24,16 +26,12 @@ float64 = ctypes.c_double
 # alias for reasons (???)
 TaskHandle = uInt32
 
-
-# max is float64(1e6), well its 1.25MS/s/channel
-DAQmx_InputSampleRate = float64(1.2e6)
-DAQmx_OutPutSampleRate = float64(1.2e6)  # Its 3.33MS/s
+# converted to ctype floats for use with the DLL
+DAQmx_OutPutSampleRate = float64(MAX_OUTPUT_SAMPLE_RATE)
 
 # Constants associated with NI-DAQmx
 DAQmx_Val_Cfg_Default = int32(-1)
-DAQmax_Channels_Number = 3
-
-OutputVoltageRange = 5
+DAQmax_Channels_Number = len(CHANNELS)
 
 
 # ### nidaq.DAQmxCreateTask
@@ -79,22 +77,6 @@ OutputVoltageRange = 5
 # sample clock, and the number of samples to acquire or generate
 
 
-
-
-class DAQWrapper(object):
-    """docstring for DAQWrapper"""
-    def __init__(self, arg):
-        super(DAQWrapper, self).__init__()
-        self.arg = arg
-        try:
-            self.daq = ctypes.windll.nicaiu  # load the DLL
-        except:
-            pass
-
-    def stop_task():
-        pass
-
-
 class WaveformThread(threading.Thread):
     """
     This class performs the necessary initialization of the DAQ hardware and
@@ -121,30 +103,30 @@ class WaveformThread(threading.Thread):
 
     DAQmx_Val_Diff = int32(-1)
 
-    # AllowedInputVoltage = json.loads(config.get("NI-DAQ", "InputVoltageRange"))
-    # InputVoltageRange = 10
-
     # this places the points one at a time from each channel, I think
     DAQmx_Val_GroupByScanNumber = 0
 
-    def __init__(self, waveform, Channel, Time, input_voltage_range=10.0):
+    def __init__(self, waveform, Channel, Time,
+                 input_voltage_range,
+                 output_voltage_range,
+                 sample_rate):
 
         assert isinstance(waveform, np.ndarray)
         assert Channel in ['ao1', 'ao0']
         assert input_voltage_range in [10, 5, 2, 1]
         assert isinstance(Time, np.float64)
 
-
         self.running = True
-        self.sampleRate = DAQmx_OutPutSampleRate
-        self.periodLength = Time * DAQmx_OutPutSampleRate
+        # output sample rate
+        self.sampleRate = float64(sample_rate)
+        self.periodLength = Time * self.sampleRate
         self.Time = Time
         self.Channel = Channel
 
         # this controls the input voltage range. (+-10,+-5, +-2,+-1)
         self.InputVoltageRange = input_voltage_range
 
-        self.OutputVoltageRange = OutputVoltageRange
+        self.OutputVoltageRange = output_voltage_range
 
         self.taskHandle_Write = TaskHandle(0)
         self.taskHandle_Read = TaskHandle(1)
@@ -309,19 +291,17 @@ class MeasurementHandler():
     Attributes
     ----------
     """
-    def __init__(self, LightPulse, Averaging, Channel, Time, InputVoltageRange, OutPutVoltage=OutputVoltageRange):
-        self.LightPulse = LightPulse
+    def __init__(self, waveform, metadata):
 
-        self.Time = np.float64(Time)
-        self.Averaging = int(Averaging)
-        self.Channel = Channel
+        self.LightPulse = waveform
+        self.Time = np.float64(metadata.get_total_time())
+        self.Averaging = int(metadata.averaging)
+        self.Channel = metadata.channel_name
 
-        self.OutPutVoltage = OutPutVoltage
-        self.input_voltage_range = InputVoltageRange
+        self.output_voltage_range = metadata.OutputVoltageRange
+        self.input_voltage_range = metadata.InputVoltageRange
 
-        self.time = None
-        self.SampleRate = DAQmx_OutPutSampleRate
-
+        self.SampleRate = metadata.sample_rate
 
     def SingleMeasurement(self):
 
@@ -336,47 +316,45 @@ class MeasurementHandler():
             waveform=self.LightPulse,
             Channel=self.Channel,
             Time=self.Time,
-            input_voltage_range=self.input_voltage_range
-            # self.OutPutVoltage,
-
+            input_voltage_range=self.input_voltage_range,
+            output_voltage_range=self.output_voltage_range,
+            sample_rate=self.SampleRate
         )
         mythread.run()
         mythread.stop()
 
-        self.time = mythread.time
-        print(self.time)
+        print("Thread time: ", mythread.time)
         return mythread.Read_Data
-
-    # TODO: Refactor! this function is such a confusing pain in the ass
-    def Average(self):
-        print("MeasurementHandler: Average")
-
-        # If there is an error, put this line inside SingleMeasurement
-
-        RunningTotal = self.SingleMeasurement()
-
-        for i in range(self.Averaging - 1):
-            RunningTotal = np.vstack((self.SingleMeasurement(), RunningTotal))
-            # The running total is weighted for the number of points inside it
-            RunningTotal = np.average(RunningTotal, axis=0, weights=(1, i + 1))
-        return RunningTotal
 
     def Measure(self):
         print("MeasurementHandler: Measure")
         NUM_CHANNELS = 3.
 
         assert self.Averaging > 0, "Averaging ={0}".format(self.Averaging)
-        data = self.Average()
-        # Here the 3 stands for the number of channels
+
+        RunningTotal = self.SingleMeasurement()
+
+        if self.Averaging > 1:
+            for i in range(self.Averaging - 1):
+                RunningTotal = np.vstack((self.SingleMeasurement(),
+                                          RunningTotal))
+                # RunningTotal is weighted by the number of points
+                RunningTotal = np.average(RunningTotal,
+                                          axis=0,
+                                          weights=(1, i + 1))
+
+        data = RunningTotal
+
         # what are going to be read
-        Data = np.empty((int(data.shape[0] / NUM_CHANNELS), NUM_CHANNELS))
+        data_set = np.empty((int(data.shape[0] / NUM_CHANNELS), NUM_CHANNELS))
         # print Data.shape,data.shape
         for i in range(int(NUM_CHANNELS)):
-            # The data should be outputted one of each other, so divide it
+            # The data should be outputed one of each other, so divide it
             # up and roll it out
-            Data[:, i] = data[i * Data.shape[0]:(i + 1) * Data.shape[0]]
+            row_length = data_set.shape[0]
+            data_set[:, i] = data[i * row_length:(i + 1) * row_length]
 
-        return np.vstack((self.time, Data.T)).T
+        return np.vstack((self.time, data_set.T)).T
 
 
 class LightPulse():
