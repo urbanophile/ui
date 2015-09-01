@@ -10,8 +10,10 @@ import wx.lib.inspection
 ID_OK_BUTTON = wx.NewId()
 ID_CLOSE_BUTTON = wx.NewId()
 
-
-HEIGHT = 4
+SLIDER_MIN = 0
+SLIDER_MAX = 100
+SLIDER_INITIAL = 100
+HEIGHT = 2
 
 def enum(**enums):
     return type('Enum', (), enums)
@@ -38,7 +40,6 @@ class BoxSizerPanel(wx.Panel):
         super(BoxSizerPanel, self).__init__(parent, *args, **kwargs)
 
         self.Data = ExperimentData()
-
 
         # Attributes
         self.tc_x_mouse = wx.TextCtrl(self, style=wx.TE_READONLY)
@@ -138,7 +139,7 @@ class BoxSizerPanel(wx.Panel):
 
         # add in slider
         hbox4 = wx.BoxSizer(wx.HORIZONTAL)
-        self.slider = wx.Slider(self, value=1, minValue=0, maxValue=100, pos=(20, 20),
+        self.slider = wx.Slider(self, value=SLIDER_INITIAL, minValue=SLIDER_MIN, maxValue=SLIDER_MAX, pos=(20, 20),
                                 size=(250, -1), style=wx.SL_HORIZONTAL)
         hbox4.Add(self.slider)
         vbox.Add(hbox4, flag=wx.ALIGN_CENTER, border=10)
@@ -147,7 +148,7 @@ class BoxSizerPanel(wx.Panel):
         self.SetSizer(vbox)
 
     def _PlotHandler(self):
-        x = [1] * HEIGHT
+        x = [SLIDER_INITIAL] * HEIGHT
         y = range(HEIGHT)
         # so that it's a tuple
 
@@ -220,29 +221,52 @@ class BoxSizerPanel(wx.Panel):
         self.mouse_action = combo_selection
 
     def move_left(self, val):
-        print("DEBUG VAL: ", val)
+        # print("DEBUG VAL: ", val)
         x, y = self.figure_canvas.line.get_data()
-        print("DEBUG: ", x, y)
+        # print("DEBUG: ", x, y)
         x = [val] * HEIGHT
         self.figure_canvas.line.set_xdata(np.array(x) + 0.001)
         # self.axes1.set_xbound([0, x[-1] + 1])
         self.figure_canvas.draw()
 
+    def offset_mean(self, val, col_num):
+        """
+        Determine mean value of col_num column between val to end of the array
+        """
+        col = self.Data.Data[:, col_num]
+        fudge_factor = len(col) / float(SLIDER_MAX)
+        # print(col)
+        return np.min(col[int(fudge_factor) * val:])
+
+    def update_graph(self, mean_val, col_num):
+        labels = ['Reference', 'PC', 'PL']
+        colours = ['b', 'r', 'g']
+        data = np.copy(self.Data.Data)
+        data[:, col_num] = self.Data.Data[:, col_num] - mean_val
+        for i, label, colour in zip(data[:, 1:].T, labels, colours):
+
+            self.axes1.plot(
+                data[::1, 0],
+                i[::1],
+                '.',
+                color=colour,
+                # Label=label
+            )
+        del self.axes1.lines[1:4]
+        # self.figure_canvas.draw()
 
     def OnSliderScroll(self, e):
 
         obj = e.GetEventObject()
         val = obj.GetValue()
+        mean_val = self.offset_mean(val, 1)
+        self.update_graph(mean_val, 1)
+        print(self.axes1.lines)
         self.move_left(val)
         print(str(val))
+        print(mean_val)
 
         # self.txt.SetLabel(str(val))
-
-class AppHandler(object):
-    """docstring for AppHandler"""
-    def __init__(self, arg):
-        super(AppHandler, self).__init__()
-        self.arg = arg
 
 
 
