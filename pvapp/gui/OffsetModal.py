@@ -1,13 +1,19 @@
 import wx
 import matplotlib.figure as plt
+import numpy as np
 # from gui.Canvas import CanvasPanel
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-from wx.lib.pubsub import pub
+from util.Models import ExperimentData
 import wx.lib.inspection
+
 
 ID_OK_BUTTON = wx.NewId()
 ID_CLOSE_BUTTON = wx.NewId()
 
+SLIDER_MIN = 0
+SLIDER_MAX = 100
+SLIDER_INITIAL = 100
+HEIGHT = 2
 
 def enum(**enums):
     return type('Enum', (), enums)
@@ -33,6 +39,8 @@ class BoxSizerPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
         super(BoxSizerPanel, self).__init__(parent, *args, **kwargs)
 
+        self.Data = ExperimentData()
+
         # Attributes
         self.tc_x_mouse = wx.TextCtrl(self, style=wx.TE_READONLY)
         self.tc_y_mouse = wx.TextCtrl(self, style=wx.TE_READONLY)
@@ -54,10 +62,12 @@ class BoxSizerPanel(wx.Panel):
         # mouse action state
         self.mouse_action = None
         # Layout
+        self._PlotHandler()
         self._doLayout()
 
         # Event Handlers
         self._EventHandlers()
+
 
     def _doLayout(self):
 
@@ -69,14 +79,7 @@ class BoxSizerPanel(wx.Panel):
         hbox1 = wx.BoxSizer(wx.HORIZONTAL)
         # self.Fig1 = CanvasPanel(canvas_panel)
 
-        # matplotlib canvas
-        axes1 = self.figure.add_subplot(111)
-        figure_canvas = FigureCanvas(self, -1, self.figure)
-        self.figure.canvas.mpl_connect('motion_notify_event', self.OnMove)
-        self.figure.canvas.mpl_connect('button_press_event', self.OnClick)
-
-
-        hbox1.Add(figure_canvas, proportion=1, flag=wx.ALL|wx.EXPAND, border=20)
+        hbox1.Add(self.figure_canvas, proportion=1, flag=wx.ALL|wx.EXPAND, border=20)
         vbox.Add(hbox1, proportion=1, flag=wx.EXPAND, border=20)
 
         vbox.AddSpacer(15)
@@ -131,18 +134,52 @@ class BoxSizerPanel(wx.Panel):
         self.okButton = wx.Button(self, id=ID_OK_BUTTON, label='Ok')
         self.closeButton = wx.Button(self, id=ID_CLOSE_BUTTON, label='Close')
         hbox3.Add(self.okButton)
-        hbox3.Add(self.closeButton, flag=wx.LEFT|wx.BOTTOM, border=5)
+        hbox3.Add(self.closeButton, flag=wx.LEFT | wx.BOTTOM, border=5)
         vbox.Add(hbox3, flag=wx.ALIGN_CENTER, border=10)
+
+        # add in slider
+        hbox4 = wx.BoxSizer(wx.HORIZONTAL)
+        self.slider = wx.Slider(self, value=SLIDER_INITIAL, minValue=SLIDER_MIN, maxValue=SLIDER_MAX, pos=(20, 20),
+                                size=(250, -1), style=wx.SL_HORIZONTAL)
+        hbox4.Add(self.slider)
+        vbox.Add(hbox4, flag=wx.ALIGN_CENTER, border=10)
 
         # add in buttons
         self.SetSizer(vbox)
 
-        # event handlers
+    def _PlotHandler(self):
+        x = [SLIDER_INITIAL] * HEIGHT
+        y = range(HEIGHT)
+        # so that it's a tuple
+
+        # matplotlib canvas
+        self.axes1 = self.figure.add_subplot(111)
+        self.figure_canvas = FigureCanvas(self, -1, self.figure)
+        self.figure.canvas.mpl_connect('motion_notify_event', self.OnMove)
+        self.figure.canvas.mpl_connect('button_press_event', self.OnClick)
+
+        self.figure_canvas.line, = self.axes1.plot(x, y, linewidth=2)
+
+        labels = ['Reference', 'PC', 'PL']
+        colours = ['b', 'r', 'g']
+        data = self.Data.Data
+        for i, label, colour in zip(data[:, 1:].T, labels, colours):
+
+            self.axes1.plot(
+                data[::1, 0],
+                i[::1],
+                '.',
+                # Color=colour,
+                # Label=label
+            )
+
 
     def _EventHandlers(self):
         self.okButton.Bind(wx.EVT_BUTTON, self.OnClose)
         self.closeButton.Bind(wx.EVT_BUTTON, self.OnClose)
         self.combobox.Bind(wx.EVT_COMBOBOX, self.OnSelect)
+        self.combobox.Bind(wx.EVT_COMBOBOX, self.OnSelect)
+        self.slider.Bind(wx.EVT_SLIDER, self.OnSliderScroll)
 
 
 
@@ -155,10 +192,10 @@ class BoxSizerPanel(wx.Panel):
         x_coord = plt_event.xdata
         y_coord = plt_event.ydata
         log_format = 'button={0}, x={1}, y={2}, xdata={3}, ydata={4}'
-        print(log_format.format(
-            plt_event.button, plt_event.x, plt_event.y,
-            plt_event.xdata, plt_event.ydata
-        ))
+        # print(log_format.format(
+        #     plt_event.button, plt_event.x, plt_event.y,
+        #     plt_event.xdata, plt_event.ydata
+        # ))
         if x_coord is not None and y_coord is not None:
             self.tc_x_mouse.SetValue('{0:.2f}'.format(x_coord))
             self.tc_y_mouse.SetValue('{0:.2f}'.format(y_coord))
@@ -182,6 +219,55 @@ class BoxSizerPanel(wx.Panel):
     def OnSelect(self, e):
         combo_selection = e.GetString()
         self.mouse_action = combo_selection
+
+    def move_left(self, val):
+        # print("DEBUG VAL: ", val)
+        x, y = self.figure_canvas.line.get_data()
+        # print("DEBUG: ", x, y)
+        x = [val] * HEIGHT
+        self.figure_canvas.line.set_xdata(np.array(x) + 0.001)
+        # self.axes1.set_xbound([0, x[-1] + 1])
+        self.figure_canvas.draw()
+
+    def offset_mean(self, val, col_num):
+        """
+        Determine mean value of col_num column between val to end of the array
+        """
+        col = self.Data.Data[:, col_num]
+        fudge_factor = len(col) / float(SLIDER_MAX)
+        # print(col)
+        return np.min(col[int(fudge_factor) * val:])
+
+    def update_graph(self, mean_val, col_num):
+        labels = ['Reference', 'PC', 'PL']
+        colours = ['b', 'r', 'g']
+        data = np.copy(self.Data.Data)
+        data[:, col_num] = self.Data.Data[:, col_num] - mean_val
+        for i, label, colour in zip(data[:, 1:].T, labels, colours):
+
+            self.axes1.plot(
+                data[::1, 0],
+                i[::1],
+                '.',
+                color=colour,
+                # Label=label
+            )
+        del self.axes1.lines[1:4]
+        # self.figure_canvas.draw()
+
+    def OnSliderScroll(self, e):
+
+        obj = e.GetEventObject()
+        val = obj.GetValue()
+        mean_val = self.offset_mean(val, 1)
+        self.update_graph(mean_val, 1)
+        print(self.axes1.lines)
+        self.move_left(val)
+        print(str(val))
+        print(mean_val)
+
+        # self.txt.SetLabel(str(val))
+
 
 
 def main():
