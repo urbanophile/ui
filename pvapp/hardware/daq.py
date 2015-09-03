@@ -134,7 +134,6 @@ class WaveformThread(threading.Thread):
         assert input_voltage_range in [10, 5, 2, 1]
         assert isinstance(Time, np.float64)
 
-
         self.running = True
         self.sampleRate = DAQmx_OutPutSampleRate
         self.periodLength = Time * DAQmx_OutPutSampleRate

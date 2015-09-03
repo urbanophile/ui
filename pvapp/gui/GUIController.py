@@ -1,9 +1,10 @@
 import os  # importing wx files
 import wx
-
+import numpy as np
 from util import utils
 from util.Constants import (
     CHANNELS,
+    CHANNEL_INDEX,
     INPUT_VOLTAGE_RANGE_STR,
     WAVEFORMS,
     OUTPUTS
@@ -26,6 +27,12 @@ class PVapp(wx.App):
         self.legacy_view.Show()
 
         self.controller = PlaceholderController(self.legacy_view)
+
+        self.data_panel_controller = DataPanelHandler(
+            self.legacy_view.Data,
+            self.legacy_view.data_panel,
+            self.legacy_view
+        )
         return True
 
 
@@ -115,6 +122,11 @@ class PlaceholderController(object):
 
     def onPCCalibration(self, event):
         print('onPCCalibration')
+
+
+
+
+
 
 
 # hybrid view/controller
@@ -500,16 +512,27 @@ class GUIController(FrameSkeleton):
 class DataProcessingPanel(DataPanel):
 
     def __init__(self, parent):
+        self.SLIDER_MIN = 0
+        self.SLIDER_MAX = 100
+        self.SLIDER_INITIAL = 100
+
         # initialize parent class
         DataPanel.__init__(self, parent)
 
-        self.m_yChannelChoice.AppendItems(CHANNELS)
+        self.__InitLayout()
+
+    def __InitLayout(self):
+        self.m_OffsetSlider.SetRange(self.SLIDER_MIN, self.SLIDER_MAX)
+        self.m_OffsetSlider.SetValue(self.SLIDER_MAX)
+
+        self.m_offsetChannelChoice.AppendItems(CHANNELS)
+        self.m_fftChoice.AppendItems(CHANNELS)
 
         self.m_leftCropDistance.SetValidator(NumRangeValidator(numeric_type='float'))
         self.m_rightCropDistance.SetValidator(NumRangeValidator(numeric_type='float'))
         self.m_yOffset.SetValidator(NumRangeValidator(numeric_type='float'))
         self.m_binSize.SetValidator(NumRangeValidator())
-        self.m_fftChoice.AppendItems(CHANNELS)
+
 
     #################
     # UI listeners
@@ -563,3 +586,106 @@ class DataProcessingPanel(DataPanel):
     def onInvertPL(self, event):
         pub.sendMessage('transform.invert', channel='PL')
         pub.sendMessage('data.changed')
+
+
+class DataPanelHandler(object):
+    """docstring for DataPanelHandler"""
+    def __init__(self, data, datapanel_view, acquisition_view):
+        super(DataPanelHandler, self).__init__()
+
+        self.HEIGHT = 2
+
+        self.Data = data
+        self.datapanel = datapanel_view
+        self.acquisition_view = acquisition_view
+        self.axes1 = self.acquisition_view.Fig1.axes
+        self.figure_canvas = self.acquisition_view.Fig1.canvas
+        self.__InitHandlers()
+        self.__PlotHandler()
+
+    def __InitHandlers(self):
+        self.datapanel.m_OffsetSlider.Bind(wx.EVT_SLIDER, self.onSliderScroll)
+
+        self.datapanel.m_changeOffset.Bind(wx.EVT_BUTTON, self.onChangeOffset)
+        self.datapanel.m_interactiveOffsets.Bind(wx.EVT_BUTTON, self.onInteractiveOffsets)
+
+    def __PlotHandler(self):
+        x = [self.datapanel.SLIDER_INITIAL] * self.HEIGHT
+        y = range(self.HEIGHT)
+
+        # matplotlib canvas
+
+        # TODO refactor
+        self.figure_canvas.line, = self.axes1.plot(x, y, linewidth=2)
+
+        labels = ['Reference', 'PC', 'PL']
+        colours = ['b', 'r', 'g']
+        data = self.Data.Data
+        for i, label, colour in zip(data[:, 1:].T, labels, colours):
+
+            self.axes1.plot(
+                data[::1, 0],
+                i[::1],
+                '.',
+                # Color=colour,
+                # Label=label
+            )
+
+    def onChangeOffset(self, event):
+        num = float(self.datapanel.m_yOffset.GetValue())
+        channel = self.datapanel.m_offsetChannelChoice.GetStringSelection()
+        self.Data[:, CHANNEL_INDEX[channel]] = self.Data[:, CHANNEL_INDEX[channel]] - num
+
+        self.data = self.data
+
+    def onInteractiveOffsets(self, event):
+        val = self.datapanel.m_OffsetSlider.GetValue()
+        num = self.offset_mean(val, 1)
+        channel = self.datapanel.m_offsetChannelChoice.GetStringSelection()
+        self.Data[:, CHANNEL_INDEX[channel]] = self.Data[:, CHANNEL_INDEX[channel]] - num
+
+    def onSliderScroll(self, event):
+        channel = self.datapanel.m_offsetChannelChoice.GetStringSelection()
+        index = CHANNEL_INDEX[channel]
+
+        obj = event.GetEventObject()
+        val = obj.GetValue()
+        mean_val = self.offset_mean(val, index)
+        self.update_graph(mean_val, index)
+        print(self.axes1)
+        self.move_line(val)
+        print(str(val))
+        print(mean_val)
+
+    def move_line(self, val):
+        x, y = self.figure_canvas.line.get_data()
+
+        x = [val] * self.HEIGHT
+        self.figure_canvas.line.set_xdata(np.array(x) + 0.001)
+        # self.axes1.set_xbound([0, x[-1] + 1])
+        self.figure_canvas.draw()
+
+    def offset_mean(self, val, col_num):
+        """
+        Determine mean value of col_num column between val to end of the array
+        """
+        col = self.Data.Data[:, col_num]
+        fudge_factor = len(col) / float(self.datapanel.SLIDER_MAX)
+        # print(col)
+        return np.min(col[int(fudge_factor) * val:])
+
+    def update_graph(self, mean_val, col_num):
+        labels = ['Reference', 'PC', 'PL']
+        colours = ['b', 'r', 'g']
+        data = np.copy(self.Data.Data)
+        data[:, col_num] = self.Data.Data[:, col_num] - mean_val
+        for i, label, colour in zip(data[:, 1:].T, labels, colours):
+
+            self.axes1.plot(
+                data[::1, 0],
+                i[::1],
+                '.',
+                color=colour,
+                # Label=label
+            )
+        del self.axes1.lines[1:4]
