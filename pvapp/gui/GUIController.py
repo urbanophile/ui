@@ -658,22 +658,20 @@ class DataPanelHandler(object):
                 data[::1, 0],
                 i[::1],
                 '.',
-                # Color=colour,
+                color=colour,
                 # Label=label
             )
 
     def onChangeOffset(self, event):
         num = float(self.datapanel.m_yOffset.GetValue())
         channel = self.datapanel.m_offsetChannelChoice.GetStringSelection()
-        self.Data[:, CHANNEL_INDEX[channel]] = self.Data[:, CHANNEL_INDEX[channel]] - num
-
-        self.data = self.data
+        self.Data.Data[:, CHANNEL_INDEX[channel]] = self.Data.Data[:, CHANNEL_INDEX[channel]] - num
 
     def onInteractiveOffsets(self, event):
         val = self.datapanel.m_OffsetSlider.GetValue()
         num = self.offset_mean(val, 1)
         channel = self.datapanel.m_offsetChannelChoice.GetStringSelection()
-        self.Data[:, CHANNEL_INDEX[channel]] = self.Data[:, CHANNEL_INDEX[channel]] - num
+        self.Data.Data[:, CHANNEL_INDEX[channel]] = self.Data.Data[:, CHANNEL_INDEX[channel]] - num
 
     def onSliderScroll(self, event):
         channel = self.datapanel.m_offsetChannelChoice.GetStringSelection()
