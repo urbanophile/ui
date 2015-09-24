@@ -4,7 +4,7 @@ import numpy as np
 from numpy import pi
 from scipy import signal
 from util.Constants import (
-    # MAX_OUTPUT_SAMPLE_RATE,
+    MAX_OUTPUT_SAMPLE_RATE,
     MAX_INPUT_SAMPLE_RATE,
     CHANNELS
 )
@@ -112,17 +112,24 @@ class WaveformThread(threading.Thread):
     def __init__(self, waveform, Channel, Time,
                  input_voltage_range,
                  output_voltage_range,
-                 sample_rate):
+                 output_sample_rate,
+                 input_sample_rate):
 
         assert isinstance(waveform, np.ndarray)
         assert Channel in ['ao1', 'ao0']
         assert input_voltage_range in [10, 5, 2, 1]
         assert isinstance(Time, np.float64)
+        assert output_sample_rate <= MAX_OUTPUT_SAMPLE_RATE
+        assert input_sample_rate <= MAX_INPUT_SAMPLE_RATE
+
+        self.DEVICE_ID = "Dev3/"
 
         self.running = True
         # output sample rate
-        self.sampleRate = float64(sample_rate)
-        self.periodLength = Time * self.sampleRate
+        self.periodLength = int((Time * output_sample_rate).item())
+        
+        self.sampleRate = float64(1.2e3) # float64(output_sample_rate) # output sample rate
+        self.input_sample_rate = float64(input_sample_rate)
         self.Time = Time
         self.Channel = Channel
 
@@ -136,12 +143,13 @@ class WaveformThread(threading.Thread):
 
         self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
 
+        assert self.periodLength 
         for i in range(self.periodLength):
             self.Write_data[i] = waveform[i]
 
         # functions to configure the DAQ
         self.Setup_Write()
-        self.Setup_Read(Time)
+        self.Setup_Read(self.Time, self.input_sample_rate)
 
     def Setup_Write(self):
         print('Waveform: Setup_Write')
@@ -158,7 +166,7 @@ class WaveformThread(threading.Thread):
         print('DAQmxCreateAOVoltageChan')
         self.CHK(nidaq.DAQmxCreateAOVoltageChan(
             self.taskHandle_Write,
-            "Dev3/" + self.Channel,
+            self.DEVICE_ID + self.Channel,
             "",
             float64(-self.OutputVoltageRange),
             float64(self.OutputVoltageRange),
@@ -168,10 +176,11 @@ class WaveformThread(threading.Thread):
         print("OutputVoltageRange: ", self.OutputVoltageRange)
         print(np.max(self.Write_data))
 
+        print("Sample rate :", self.sampleRate)
         print('DAQmxCfgSampClkTiming')
         self.CHK(nidaq.DAQmxCfgSampClkTiming(
             self.taskHandle_Write,
-            "/Dev3/ai/SampleClock",
+            "/" + self.DEVICE_ID + "ai/SampleClock",
             self.sampleRate,   # samples per channel
             self.DAQmx_Val_Rising,   # active edge
             self.DAQmx_Val_FiniteSamps,
@@ -193,16 +202,16 @@ class WaveformThread(threading.Thread):
         print('Finish Setup_Write')
 
 
-    def Setup_Read(self, Time):
+    def Setup_Read(self, Time, input_sample_rate):
         print('Waveform: Setup_Read')
 
-        self.max_num_samples = int(np.float32(DAQmx_InputSampleRate) * 3 * Time)
+        self.max_num_samples = int(np.float32(input_sample_rate) * 3 * Time)
         self.CHK(nidaq.DAQmxCreateTask("", ctypes.byref(self.taskHandle_Read)))
 
         print('DAQmxCreateAIVoltageChan')
         self.CHK(nidaq.DAQmxCreateAIVoltageChan(
             self.taskHandle_Read,
-            "Dev3/ai0:2",
+            self.DEVICE_ID + "ai0:2",
             "",
             self.DAQmx_Val_Diff,  # this is the rise type
             float64(-self.InputVoltageRange),
@@ -218,7 +227,7 @@ class WaveformThread(threading.Thread):
             # "/Dev3/ao/SampleClock",
             # "ao/SampleClock",
             # "Dev3/"+self.Channel+"/SampleClock"- doesn't work,
-            DAQmx_InputSampleRate,
+            input_sample_rate,
             self.DAQmx_Val_Rising,
             self.DAQmx_Val_FiniteSamps,
             uInt64(self.max_num_samples)
@@ -261,14 +270,6 @@ class WaveformThread(threading.Thread):
         self.time = np.linspace(0, self.Time, self.read.value)
         # print self.time[0]
 
-        # This check was performed to determine if the set frequency was
-        # actually what was measured. It appears it is.
-        # print self.read.value
-        # print (toc - tic)*1e6
-        # print 'Minimum time reading',(toc - tic)*1e6/(self.read.value)
-        # plot(self.Read_Data)
-        # show()
-        # print self.read
         return self.Read_Data
 
     def stop(self):
@@ -321,43 +322,48 @@ class MeasurementHandler():
             Time=self.Time,
             input_voltage_range=self.input_voltage_range,
             output_voltage_range=self.output_voltage_range,
-            sample_rate=self.SampleRate
+            input_sample_rate=self.SampleRate,
+            output_sample_rate=1.2e3
         )
         mythread.run()
         mythread.stop()
 
         print("Thread time: ", mythread.time)
-        return mythread.Read_Data
+        return mythread.Read_Data, mythread.time
 
     def Measure(self):
         print("MeasurementHandler: Measure")
         NUM_CHANNELS = 3.
+        thread_time = None
 
         assert self.Averaging > 0, "Averaging ={0}".format(self.Averaging)
 
-        RunningTotal = self.SingleMeasurement()
+        measurement_data, thread_time = self.SingleMeasurement()
 
         if self.Averaging > 1:
             for i in range(self.Averaging - 1):
-                RunningTotal = np.vstack((self.SingleMeasurement(),
-                                          RunningTotal))
+                print("Thread time: ", thread_time)
+                self.SingleMeasurement()
+                thread_data, thread_time = self.SingleMeasurement()
+                measurement_data = np.vstack((thread_data,
+                                          measurement_data))
                 # RunningTotal is weighted by the number of points
-                RunningTotal = np.average(RunningTotal,
+                measurement_data = np.average(measurement_data,
                                           axis=0,
                                           weights=(1, i + 1))
 
-        data = RunningTotal
-
         # what are going to be read
-        data_set = np.empty((int(data.shape[0] / NUM_CHANNELS), NUM_CHANNELS))
-        # print Data.shape,data.shape
+        print "Data value: ", measurement_data, 
+        print "data type: ", type(measurement_data)
+        data_set = np.empty((int(measurement_data.shape[0] / NUM_CHANNELS), NUM_CHANNELS))
+
         for i in range(int(NUM_CHANNELS)):
             # The data should be outputed one of each other, so divide it
             # up and roll it out
             row_length = data_set.shape[0]
-            data_set[:, i] = data[i * row_length:(i + 1) * row_length]
+            data_set[:, i] =measurement_data[i * row_length:(i + 1) * row_length]
 
-        return np.vstack((self.time, data_set.T)).T
+        return np.vstack((thread_time, data_set.T)).T
 
 
 class LightPulse():

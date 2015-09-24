@@ -33,7 +33,7 @@ class ExperimentSettings(object):
             'PL': True
         }
 
-        self.sample_rate = MAX_INPUT_SAMPLE_RATE
+        self.sample_rate = 1.2e3
         self.InputVoltageRange = 10.0
         self.OutputVoltageRange = 5
 

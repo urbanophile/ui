@@ -15,6 +15,7 @@ WAVEFORMS = ["Cos", "Sin", "Square",
 OUTPUTS = ['Low (50mA/V)', 'High (2A/V)']
 
 
+########## NI-DAQmx specific rates 
 # These values are specific to NI-DAQmx
 
 # Magic numbers relating to hardware. They convert sent voltage to current.
