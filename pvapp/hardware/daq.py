@@ -37,65 +37,11 @@ DAQmx_Val_Cfg_Default = int32(-1)
 DAQmax_Channels_Number = len(CHANNELS)
 
 
-# ### nidaq.DAQmxCreateTask
-# creates a task, which must be later cleared
-# returns a taskHandle obje
-
-# ### nidaq.DAQmxCreateAIVoltageChan
-# creates an analog input voltage channel
-
-# ### nidaq.DAQmxCreateAOVoltageChan
-# Creates channel(s) to generate voltage and adds the channel(s) to
-# the task you specify with taskHandle.
-
-# ### nidaq.DAQmxStartTask
-# Transitions the task from the committed state to the running state,
-# which begins measurement or generation.
-
-# ### nidaq.DAQmxStopTask
-# Stops the task and returns it to the state it was in before you
-# called DAQmxStartTask
-
-# ### nidaq.DAQmxClearTask
-# clears the specified task. If the task is currently running, the
-# function first stops thetask and then releases all of its resources.
-
-# ### nidaq.DAQmxReadAnalogF64
-# reads samples from the specified acquisition task.
-
-# ### nidaq.DAQmxWriteAnalogF64
-# The NI-DAQmx Write Function moves samples from the
-# Application Development Environment (ADE) Memory to the PC Buffer in RAM.
-
-# ### nidaq.DAQmxGetErrorString
-# Converts the error number returned
-# by an NI-DAQmx function into a meaningful error message.
-
-# ### nidaq.DAQmxCfgSampClkTiming
-# Your device uses a sample clock to control the rate at which samples
-# are acquired and generated. This sample clock sets the time interval
-#  between samples. Each tick of this clock initiates the acquisition
-# or generation of one sample per channel.
-# This function sets the source of the sample clock, the rate of the
-# sample clock, and the number of samples to acquire or generate
-
-
 class WaveformThread(threading.Thread):
     """
     This class performs the necessary initialization of the DAQ hardware and
-    spawns a thread to handle playback of the signal.
-    It takes as input arguments the waveform to play and the sample rate at
-    which to play it.
-    This will play an arbitrary-length waveform file.
-
-    Attributes
-    ----------
-
-    running
-    sampleRate
-    periodLength
-    time
-
+    spawns a thread to handle playback of the signal. It will play an
+    arbitrary-length waveform file.
     """
 
     DAQmx_Val_Volts = 10348
@@ -114,6 +60,16 @@ class WaveformThread(threading.Thread):
                  output_voltage_range,
                  output_sample_rate,
                  input_sample_rate):
+        """
+        :param waveform: a numpy array representating a waveform
+        :param Channel: a string specifying the analog out channels
+        :param Time: a numpy 64-bit float
+        :param input_voltage_range: a positive integer representing the DAQ voltage input range
+        :param output_voltage_range: a positive integer representing the
+        :param output_sample_rate: the DAQ sample rate in samples per second
+        :param input_sample_rate: the ADQ sample rate in samples per second
+        :return: None
+        """
 
         assert isinstance(waveform, np.ndarray)
         assert Channel in ['ao1', 'ao0']
@@ -127,34 +83,42 @@ class WaveformThread(threading.Thread):
         self.running = True
         # output sample rate
         self.periodLength = int((Time * output_sample_rate).item())
-        
+
+        self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
+
         self.sampleRate = float64(1.2e3) # float64(output_sample_rate) # output sample rate
         self.input_sample_rate = float64(input_sample_rate)
+
+        self.max_num_samples = int(np.float32(input_sample_rate) * 3 * Time)
+
+        self.Read_Data = np.zeros((self.max_num_samples,), dtype=np.float64)
+        self.read = int32()
+
         self.Time = Time
         self.Channel = Channel
 
         # this controls the input voltage range. (+-10,+-5, +-2,+-1)
         self.InputVoltageRange = input_voltage_range
-
         self.OutputVoltageRange = output_voltage_range
 
         self.taskHandle_Write = TaskHandle(0)
         self.taskHandle_Read = TaskHandle(1)
 
-        self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
 
-        assert self.periodLength 
+        assert self.periodLength
         for i in range(self.periodLength):
             self.Write_data[i] = waveform[i]
 
         # functions to configure the DAQ
-        self.Setup_Write()
-        self.Setup_Read(self.Time, self.input_sample_rate)
+        self._setup_write()
+        self._setup_read(self.Time, self.input_sample_rate)
 
-    def Setup_Write(self):
-        print('Waveform: Setup_Write')
-
-        # convert waveform to a numpy array
+    def _setup_write(self):
+        """
+        Method to setup the DAQ to write out the selected waveform
+        :return: None
+        """
+        print('Waveform: _setup_write')
 
         # setup the DAQ hardware
         print('DAQmxCreateTask')
@@ -163,7 +127,8 @@ class WaveformThread(threading.Thread):
             ctypes.byref(self.taskHandle_Write)
         ))
 
-        print('DAQmxCreateAOVoltageChan')
+        # Creates channel(s) to generate voltage and adds the channel(s) to
+        # the task you specify with taskHandle.
         self.CHK(nidaq.DAQmxCreateAOVoltageChan(
             self.taskHandle_Write,
             self.DEVICE_ID + self.Channel,
@@ -173,11 +138,9 @@ class WaveformThread(threading.Thread):
             self.DAQmx_Val_Volts,
             None
         ))
-        print("OutputVoltageRange: ", self.OutputVoltageRange)
-        print(np.max(self.Write_data))
 
-        print("Sample rate :", self.sampleRate)
-        print('DAQmxCfgSampClkTiming')
+        # Configures the sample clock which controls the rate at
+        # which samples are acquired and generated.
         self.CHK(nidaq.DAQmxCfgSampClkTiming(
             self.taskHandle_Write,
             "/" + self.DEVICE_ID + "ai/SampleClock",
@@ -187,7 +150,8 @@ class WaveformThread(threading.Thread):
             uInt64(self.periodLength)
         ))
 
-        print('DAQmxWriteAnalogF64')
+        # Moves samples from  Application Development Environment (ADE) Memory
+        # to the PC Buffer in RAM.
         self.CHK(nidaq.DAQmxWriteAnalogF64(
             self.taskHandle_Write,  # TaskHandel
             int32(self.periodLength),  # num of samples per channel
@@ -197,18 +161,22 @@ class WaveformThread(threading.Thread):
             self.Write_data.ctypes.data,  # write array
             None,  # samplers per channel written
             None
-        ))  # reserved
+        ))
         threading.Thread.__init__(self)
-        print('Finish Setup_Write')
 
+    def _setup_read(self, Time, input_sample_rate):
+        """
+        Sets up the DAQ to read analog input after playing the waveform.
 
-    def Setup_Read(self, Time, input_sample_rate):
-        print('Waveform: Setup_Read')
+        :param Time: a numpy 64 bit float64
+        :param input_sample_rate: a
+        :return: None
+        """
 
-        self.max_num_samples = int(np.float32(input_sample_rate) * 3 * Time)
+        # creates a task which must be later cleared
         self.CHK(nidaq.DAQmxCreateTask("", ctypes.byref(self.taskHandle_Read)))
 
-        print('DAQmxCreateAIVoltageChan')
+        # creates an analog input voltage channel
         self.CHK(nidaq.DAQmxCreateAIVoltageChan(
             self.taskHandle_Read,
             self.DEVICE_ID + "ai0:2",
@@ -220,7 +188,8 @@ class WaveformThread(threading.Thread):
             None
         ))
 
-        print('DAQmxCfgSampClkTiming')
+        # Configures the sample clock which controls the rate at
+        # which samples are acquired and generated.
         self.CHK(nidaq.DAQmxCfgSampClkTiming(
             self.taskHandle_Read,
             "",
@@ -233,26 +202,42 @@ class WaveformThread(threading.Thread):
             uInt64(self.max_num_samples)
         ))
 
-        self.Read_Data = np.zeros((self.max_num_samples,), dtype=np.float64)
-        self.read = int32()
-
     def CHK(self, err):
-        """a simple error checking routine"""
+        """
+        An error checking function to interpret the DAQ errors
+
+        :param err: an integer representing a NI DAQ dll error code
+        :return: None
+        :raises RuntimeError: a python error with description of dll error
+        """
+
+
         if err < 0:
             buf_size = 100
             buf = ctypes.create_string_buffer('\000' * buf_size)
+
+            # retrieves the associated DAQ error string
             nidaq.DAQmxGetErrorString(err, ctypes.byref(buf), buf_size)
             raise RuntimeError('nidaq call failed with error %d: %s' % (err, repr(buf.value)))
         if err > 0:
             buf_size = 100
             buf = ctypes.create_string_buffer('\000' * buf_size)
+
+            # retrieves the associated DAQ error string
             nidaq.DAQmxGetErrorString(err, ctypes.byref(buf), buf_size)
             raise RuntimeError('nidaq generated warning %d: %s' % (err, repr(buf.value)))
 
     def run(self):
+        """
+        Starts currently setup tasks
+
+        :return: a numpy array of the data read from the DAQ
+        """
+        # creates tasks for reading and writing from the DAQ
         self.CHK(nidaq.DAQmxStartTask(self.taskHandle_Write))
         self.CHK(nidaq.DAQmxStartTask(self.taskHandle_Read))
 
+        # reads samples from the specified acquisition task.
         self.CHK(nidaq.DAQmxReadAnalogF64(
             self.taskHandle_Read,  # Task handle
             -1,  # numSamples per channel, -1 reads as many samples as possible
@@ -265,14 +250,18 @@ class WaveformThread(threading.Thread):
             ctypes.byref(self.read),  # The actual number of samples read per channel (its an output)
             None
         ))  # reserved for future use, pass none to this
-        # toc = time.clock()
-        # print self.Time
+
+        # create an array of time values corresponding to each sample
         self.time = np.linspace(0, self.Time, self.read.value)
-        # print self.time[0]
 
         return self.Read_Data
 
     def stop(self):
+        """
+        Stops and clears any currently running tasks from the workspace
+        :return: None
+        """
+
         self.running = False
         if self.taskHandle_Write.value != 0:
             nidaq.DAQmxStopTask(self.taskHandle_Write)
@@ -281,21 +270,27 @@ class WaveformThread(threading.Thread):
         if self.taskHandle_Read.value != 0:
             nidaq.DAQmxStopTask(self.taskHandle_Read)
             nidaq.DAQmxClearTask(self.taskHandle_Read)
-        # show()
 
     def clear(self):
+        """
+        Removes the DAQ task from workspace
+        :return: None
+        """
         nidaq.DAQmxClearTask(self.taskHandle_Write)
         nidaq.DAQmxClearTask(self.taskHandle_Read)
 
 
-class MeasurementHandler():
+class MeasurementHandler(object):
     """
     Controller to handle IO from NI datacard
-
-    Attributes
-    ----------
     """
     def __init__(self, waveform, metadata):
+        """
+
+        :param waveform: a numpy array of floats which represent a specified waveform
+        :param metadata: a object contain the parameters needed for the DAQ
+        :return: None
+        """
 
         self.LightPulse = waveform
         self.Time = np.float64(metadata.get_total_time())
@@ -308,13 +303,12 @@ class MeasurementHandler():
         self.SampleRate = metadata.sample_rate
 
     def SingleMeasurement(self):
-
         """
         Sends a single version of waveform to the specified channel
-        Returns:
+
+        :returns mythread.Read_Data: an numpy array of measurement values
+        :returns mythread.time: a numpy array of the corresponding measurement times
         """
-        print("MeasurementHandler: SingleMeasure")
-        print("Voltage range: self.input_voltage_range")
         # start playing waveform
         mythread = WaveformThread(
             waveform=self.LightPulse,
@@ -328,11 +322,16 @@ class MeasurementHandler():
         mythread.run()
         mythread.stop()
 
-        print("Thread time: ", mythread.time)
         return mythread.Read_Data, mythread.time
 
     def Measure(self):
-        print("MeasurementHandler: Measure")
+        """
+        Performs multiple measurements including averaging the results if necessary
+
+        :returns np.vstack((thread_time, data_set.T)).T: an numpy array of times
+        and measurement values
+        """
+
         NUM_CHANNELS = 3.
         thread_time = None
 
@@ -346,27 +345,25 @@ class MeasurementHandler():
                 self.SingleMeasurement()
                 thread_data, thread_time = self.SingleMeasurement()
                 measurement_data = np.vstack((thread_data,
-                                          measurement_data))
+                                              measurement_data))
                 # RunningTotal is weighted by the number of points
                 measurement_data = np.average(measurement_data,
-                                          axis=0,
-                                          weights=(1, i + 1))
+                                              axis=0,
+                                              weights=(1, i + 1))
 
         # what are going to be read
-        print "Data value: ", measurement_data, 
-        print "data type: ", type(measurement_data)
         data_set = np.empty((int(measurement_data.shape[0] / NUM_CHANNELS), NUM_CHANNELS))
 
         for i in range(int(NUM_CHANNELS)):
-            # The data should be outputed one of each other, so divide it
+            # The data should be outputted on top of each other, so divide it
             # up and roll it out
             row_length = data_set.shape[0]
-            data_set[:, i] =measurement_data[i * row_length:(i + 1) * row_length]
+            data_set[:, i] = measurement_data[i * row_length:(i + 1) * row_length]
 
         return np.vstack((thread_time, data_set.T)).T
 
 
-class LightPulse():
+class LightPulse(object):
     """
     Represents different wave forms to be sent to play
 
@@ -431,6 +428,7 @@ class LightPulse():
     def create_waveform(self):
         """
         Factory method to produce numpy array with light intensity values
+        :returns:
         """
         # pad waveform with zeroes
         v_before = np.zeros(
@@ -515,7 +513,7 @@ class LightPulse():
 
     def NullWave(self, time_array, amplitude):
         """
-        Returns t sized array with values -A
+        :return: t sized array with values -A
         """
         return np.zeros((time_array.shape[0]))
 
