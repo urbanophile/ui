@@ -4,7 +4,7 @@ from scipy.signal import sawtooth
 
 def sawtooth_waveform(num=500, var=0.2):
     t = np.linspace(0, 1, 500)
-    return signal.sawtooth(2 * np.pi * 5 * t)
+    return sawtooth(2 * np.pi * 5 * t)
 
 
 def make_sin_data(num=301, var=0.2, duration=1):

@@ -1,0 +1,11 @@
+{
+    "Averaging": 1,
+    "Channel": "Low (50mA/V)",
+    "Intensity_v": 4,
+    "Measurement_Binning": 1,
+    "Offset_After_ms": 5.0,
+    "Offset_Before_ms": 4.0,
+    "Peroid_s": 1.0,
+    "Threshold_mA": 150.0,
+    "Waveform": "FrequencyScan"
+}

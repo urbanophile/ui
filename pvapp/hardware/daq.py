@@ -11,7 +11,9 @@ from util.Constants import (
 
 try:
     nidaq = ctypes.windll.nicaiu  # load the DLL
-except Exception, e:
+except AttributeError as e:
+    print "DLL not found {0}".format(e)
+except e:
     print(e)
 
 ##############################
@@ -127,7 +129,7 @@ class WaveformThread(threading.Thread):
         self.running = True
         # output sample rate
         self.periodLength = int((Time * output_sample_rate).item())
-        
+
         self.sampleRate = float64(1.2e3) # float64(output_sample_rate) # output sample rate
         self.input_sample_rate = float64(input_sample_rate)
         self.Time = Time
@@ -143,7 +145,7 @@ class WaveformThread(threading.Thread):
 
         self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
 
-        assert self.periodLength 
+        assert self.periodLength
         for i in range(self.periodLength):
             self.Write_data[i] = waveform[i]
 
@@ -353,7 +355,7 @@ class MeasurementHandler():
                                           weights=(1, i + 1))
 
         # what are going to be read
-        print "Data value: ", measurement_data, 
+        print "Data value: ", measurement_data,
         print "data type: ", type(measurement_data)
         data_set = np.empty((int(measurement_data.shape[0] / NUM_CHANNELS), NUM_CHANNELS))
 
@@ -475,10 +477,11 @@ class LightPulse():
         Scales an array of voltage values to below voltage_threshold
         """
         #  everything is reversed because amplitude is negative
+        print("Voltage threshold: ", self.Voltage_Threshold)
         max_voltage = np.amax(abs(voltage_waveform))
         if np.abs(max_voltage) > 0:
             scale_factor = (max_voltage - self.Voltage_Threshold) / max_voltage
-            voltage_waveform *= scale_factor * voltage_waveform
+            voltage_waveform *= scale_factor
         voltage_waveform -= self.Voltage_Threshold
         return voltage_waveform
 

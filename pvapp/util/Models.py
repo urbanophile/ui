@@ -17,6 +17,10 @@ from util.Constants import (
 from test.utils import make_sin_data
 
 
+class CalibrationData(object):
+    pass
+
+
 class ExperimentSettings(object):
     """docstring for ExperimentSettings"""
 
@@ -24,7 +28,7 @@ class ExperimentSettings(object):
         # super(ExperimentSettings, self).__init__()
         self.binning = 1
         self.averaging = 1
-        self.channel = r'Low (50mA/V)'
+        self.channel = r'High (2A/V)'
         self.threshold = 150.0
 
         self.inverted_channels = {
@@ -35,20 +39,20 @@ class ExperimentSettings(object):
 
         self.sample_rate = 1.2e3
         self.InputVoltageRange = 10.0
-        self.OutputVoltageRange = 5
+        self.OutputVoltageRange = 5.0  # volts
 
-        self.waveform = 'Cos'
-        self.amplitude = 0.5
-        self.offset_before = 1
-        self.offset_after = 10
-        self.duration = 1
+        self.waveform = 'Sin'
+        self.amplitude = 0.5  # amps
+        self.offset_before = 1  # seconds
+        self.offset_after = 10  # seconds
+        self.duration = 1  # seconds
 
         self.voltage_threshold = 150.0
         self.channel_name = None
 
         #
-        self.pc_calibration_mean = 0
-        self.pc_calibration_std = 0
+        self.pc_calibration_mean = None
+        self.pc_calibration_std = None
 
         self._determine_output_channel()
 

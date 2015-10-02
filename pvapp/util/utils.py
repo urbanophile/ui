@@ -54,7 +54,7 @@ def save_metadata(metadata_dict, filename, filepath):
     print(metadata_dict, type(metadata_dict))
     assert type(metadata_dict) is dict
 
-    full_path = os.path.join(filepath, filename + '.inf')
+    full_path = os.path.join(filepath, filename + '.json')
     serialised_json = json.dumps(
         metadata_dict,
         sort_keys=True,
@@ -66,7 +66,7 @@ def save_metadata(metadata_dict, filename, filepath):
             text_file.write(serialised_json)
 
 
-def load_metadata(self, full_filepath):
+def load_metadata(full_filepath):
     """
     Loads metadata file and returns a python dictionary
     """
@@ -77,7 +77,7 @@ def load_metadata(self, full_filepath):
 
     return metadata_dict
 
-def load_data(self, full_filepath):
+def load_data(full_filepath):
     """
     Loads data file and returns a numpy structured array
     """
