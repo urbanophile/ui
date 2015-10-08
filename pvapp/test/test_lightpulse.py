@@ -21,6 +21,8 @@ class LightPulseTest(unittest.TestCase):
         # make value
         self.assertTrue(np.any(np.amax(pulse_array) < 150.0))
 
+        self.assertTrue(self.lp.A > 0)
+
         initial_offset = int(1.2)
         np.testing.assert_array_equal(
             np.zeros(initial_offset),
@@ -32,6 +34,7 @@ class LightPulseTest(unittest.TestCase):
             np.zeros(final_offset),
             pulse_array[-final_offset:]
         )
+
 
         self.assertEqual(
             len(pulse_array[initial_offset:-final_offset]),

@@ -7,36 +7,39 @@ class ExperimentSettingsTest(unittest.TestCase):
     # np.set_printoptions(threshold='nan')
     def setUp(self):
         self.meta_data = ExperimentSettings()
+        self.maxDiff = None
 
-    def get_settings_as_dict(self):
+    def test_get_settings_as_dict(self):
         meta_data = {
-            'averaging': 1,
-            'Measurement_Binning': 1,
-            'Threshold_mA': 150,
-            'sample_rate': 1.2e3,
             'channel': 'High (2A/V)',
-            'threshold': 150.0,
-
+            'averaging': 1,
+            'measurement_binning': 1,
+            'threshold_mA': 150,
             "inverted_channels": {
                 'Reference': False,
                 'PC': False,
                 'PL': True
             },
 
+            'sample_rate': 1.2e3,
+            'output_sample_rate': 1.2e3,
+
             "InputVoltageRange": 10.0,
-            "OutputVoltageRange": 5,
+            "OutputVoltageRange": 10.0,
             "waveform": 'Sin',
             "amplitude": 0.5,
+
             "offset_before": 1,
             "offset_after": 10,
             "duration": 1,
-            "voltage_threshold": 150.0,
-            "channel_name": None,
+            "voltage_threshold": 0.08152173913043478,
+            "channel_name": 'ao0',
 
             #
-            "pc_calibration_mean": 0,
-            "pc_calibration_std": 0
+            "pc_calibration_mean": None,
+            "pc_calibration_std": None
         }
+        self.assertDictEqual(self.meta_data.get_settings_as_dict(), meta_data)
 
     def test_init(self):
         self.assertEqual(

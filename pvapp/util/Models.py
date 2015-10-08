@@ -38,16 +38,18 @@ class ExperimentSettings(object):
         }
 
         self.sample_rate = 1.2e3
+        self.output_sample_rate = 1.2e3
+
         self.InputVoltageRange = 10.0
         self.OutputVoltageRange = 10.0  # volts
 
         self.waveform = 'Sin'
-        self.amplitude = 0.5  # amps
+        self._amplitude = 0.5  # amps
         self.offset_before = 1  # seconds
         self.offset_after = 10  # seconds
         self.duration = 1  # seconds
 
-        self.voltage_threshold = 150.0
+        self._voltage_threshold = 150.0
         self.channel_name = None
 
         #
@@ -109,12 +111,29 @@ class ExperimentSettings(object):
 
     def get_settings_as_dict(self):
         meta_data = {
-            'Channel': self.channel,
-            'Averaging': self.averaging,
-            'Measurement_Binning': self.binning,
-            'Threshold_mA': self.threshold,
+            'channel': self.channel,
+            'averaging': self.averaging,
+            'measurement_binning': self.binning,
+            'threshold_mA': self.threshold,
             'inverted_channels': self.inverted_channels,
-            'sample_rate': self.sample_rate
+
+            'sample_rate': self.sample_rate,
+            'output_sample_rate': self.output_sample_rate,
+
+
+            "InputVoltageRange": self.InputVoltageRange,
+            "OutputVoltageRange": self.OutputVoltageRange,
+            "waveform": self.waveform,
+            "amplitude": self.amplitude,
+
+            "offset_before": self.offset_before,
+            "offset_after": self.offset_after,
+            "duration": self.duration,
+            "voltage_threshold": self.voltage_threshold,
+            "channel_name": self.channel_name,
+
+            "pc_calibration_mean": self.pc_calibration_mean,
+            "pc_calibration_std": self.pc_calibration_mean
         }
         return meta_data
 

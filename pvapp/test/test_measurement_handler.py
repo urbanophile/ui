@@ -18,13 +18,9 @@ class LightPulseTest(unittest.TestCase):
 
     def test_SingleMeasurement(self, mock_waveform_thread):
 
-        mock_waveform_thread.__init__.return_value = True
         mock_waveform_thread.return_value.time = 3
         mock_waveform_thread.return_value.Read_Data = np.array([])
-        # self.assertEqual(type(mock_waveform_thread), "MockClass")
 
         handler = MeasurementHandler(self.lp.create_waveform(), self.settings)
         handler.SingleMeasurement()
 
-        mock_waveform_thread.__init__.assert_called_once_with(['ao1'])
-        # self.assertTrue(mock_os.remove.called)

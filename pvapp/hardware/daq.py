@@ -324,7 +324,7 @@ class LightPulse():
         assert metadata.sample_rate > 0
 
         self.Waveform = metadata.waveform
-        self.A = - metadata.amplitude
+        self.A = metadata.amplitude
         self.Offset_Before = metadata.offset_before
         self.Offset_After = metadata.offset_after
         self.Duration = metadata.duration
@@ -357,6 +357,7 @@ class LightPulse():
         Factory method to produce numpy array with light intensity values
         """
         # pad waveform with zeroes
+
         v_before = np.zeros(
             int(self.output_samples * self.Offset_Before / 1000)
         )
@@ -372,8 +373,14 @@ class LightPulse():
 
         else:
             self.time_array = np.linspace(
-                0, self.Duration, num=self.output_samples * self.Duration
+                0, self.Duration, num=(self.output_samples * self.Duration)
             )
+            print "Duration", self.Duration
+            print "self.time_array", self.time_array.shape
+            print "time_array", self.time_array
+            print "A: ", self.A
+
+
             # TODO: this is bad, refactor
             voltage_waveform = getattr(self, self.Waveform)(
                 self.time_array, self.A
@@ -381,6 +388,7 @@ class LightPulse():
             voltage_waveform = self.scale_to_threshold(voltage_waveform)
 
         self.Duration = self.time_array[-1]
+        # print (v_before, v_after)
         complete_waveform = np.concatenate(
             (v_before, voltage_waveform, v_after)
         )
