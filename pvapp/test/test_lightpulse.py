@@ -60,11 +60,13 @@ class LightPulseTest(unittest.TestCase):
         )
 
     def test_final_pulse_array_function(self):
-        example_array = np.loadtxt("test/data/sin_data_write.csv")
+        example_array = np.loadtxt(
+            "test/data/sample_sin_waveformthread_write_data.csv"
+        )
         self.lp.Waveform = "Sin"
         pulse_array = self.lp.create_waveform()
         np.savetxt('test_sine_array', pulse_array)
-        np.testing.assert_array_equal(
+        np.testing.assert_almost_equal(
             pulse_array,
             example_array
         )

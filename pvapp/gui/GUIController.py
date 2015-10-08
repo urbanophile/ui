@@ -11,6 +11,7 @@ from util.Constants import (
     OUTPUTS
 )
 from hardware import daq
+from hardware.MeasurementHandler import MeasurementHandler
 from Canvas import CanvasPanel
 from DataPanel import DataPanel
 from Validator import NumRangeValidator
@@ -134,7 +135,7 @@ class PlaceholderController(object):
 
         # Using that instance we then run the lights,
         # and measure the outputs
-        measurement_handler = daq.MeasurementHandler(
+        measurement_handler = MeasurementHandler(
             null_pulse.complete_waveform,
             null_metadata
         )
@@ -286,7 +287,7 @@ class GUIController(FrameSkeleton):
 
         # Using that instance we then run the lights,
         # and measure the outputs
-        self.measurement_handler = daq.MeasurementHandler(
+        self.measurement_handler = MeasurementHandler(
             self.light_pulse.complete_waveform,
             self.metadata
         )

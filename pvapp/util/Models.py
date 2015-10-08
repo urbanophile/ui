@@ -39,7 +39,7 @@ class ExperimentSettings(object):
 
         self.sample_rate = 1.2e3
         self.InputVoltageRange = 10.0
-        self.OutputVoltageRange = 5.0  # volts
+        self.OutputVoltageRange = 10.0  # volts
 
         self.waveform = 'Sin'
         self.amplitude = 0.5  # amps
