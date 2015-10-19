@@ -7,9 +7,6 @@ from collections import deque
 class MeasurementHandler(object):
     """
     Controller to handle IO from NI datacard
-
-    Attributes
-    ----------
     """
     def __init__(self):
 
