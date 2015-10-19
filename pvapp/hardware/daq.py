@@ -150,6 +150,8 @@ class WaveformThread(threading.Thread):
             self.Write_data[i] = waveform[i]
 
         # functions to configure the DAQ
+
+    def setup(self):
         self.Setup_Write()
         self.Setup_Read(self.Time, self.input_sample_rate)
 
@@ -375,11 +377,6 @@ class LightPulse():
             self.time_array = np.linspace(
                 0, self.Duration, num=(self.output_samples * self.Duration)
             )
-            print "Duration", self.Duration
-            print "self.time_array", self.time_array.shape
-            print "time_array", self.time_array
-            print "A: ", self.A
-
 
             # TODO: this is bad, refactor
             voltage_waveform = getattr(self, self.Waveform)(
@@ -407,7 +404,6 @@ class LightPulse():
         Scales an array of voltage values to below voltage_threshold
         """
         #  everything is reversed because amplitude is negative
-        print("Voltage threshold: ", self.Voltage_Threshold)
         max_voltage = np.amax(abs(voltage_waveform))
         if np.abs(max_voltage) > 0:
             scale_factor = (max_voltage - self.Voltage_Threshold) / max_voltage

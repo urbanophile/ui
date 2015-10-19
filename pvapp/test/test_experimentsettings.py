@@ -24,8 +24,8 @@ class ExperimentSettingsTest(unittest.TestCase):
             'sample_rate': 1.2e3,
             'output_sample_rate': 1.2e3,
 
-            "InputVoltageRange": 10.0,
-            "OutputVoltageRange": 10.0,
+            "input_voltage_range": 10.0,
+            "output_voltage_range": 10.0,
             "waveform": 'Sin',
             "amplitude": 0.5,
 

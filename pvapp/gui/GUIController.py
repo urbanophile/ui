@@ -135,12 +135,13 @@ class PlaceholderController(object):
 
         # Using that instance we then run the lights,
         # and measure the outputs
-        measurement_handler = MeasurementHandler(
+        measurement_handler = MeasurementHandler()
+        measurement_handler.add_to_queue(
             null_pulse.complete_waveform,
             null_metadata
         )
 
-        calibration_data = measurement_handler.Measure()
+        calibration_data = measurement_handler.single_measurement()
         self.view.metadata.update_pc_calibration_data(calibration_data)
         # We then plot the datas, this has to be changed if the plots want
         # to be updated on the fly.
@@ -287,12 +288,13 @@ class GUIController(FrameSkeleton):
 
         # Using that instance we then run the lights,
         # and measure the outputs
-        self.measurement_handler = MeasurementHandler(
+        self.measurement_handler = MeasurementHandler()
+        measurement_handler.add_to_queue(
             self.light_pulse.complete_waveform,
             self.metadata
         )
 
-        raw_data = self.measurement_handler.Measure()
+        raw_data = self.measurement_handler.single_measurement()
         self.Data.updateRawData(raw_data)
         self.Data.Data = utils.bin_data(raw_data, self.metadata.binning)
         # We then plot the datas, this has to be changed if the plots want
