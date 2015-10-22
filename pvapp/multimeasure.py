@@ -38,7 +38,11 @@ class View1(IncrementalApp):
         self.m_autoPanel.SetSizer(self.fgSizerAuto)
         self.m_autoPanel.Layout()
         # self.fgSizerAuto.Fit(self.m_autoPanel)
-        print("input_rows", self.input_rows)
+
+        self.Layout()
+
+    def _set_hardware_dropdowns(self):
+        pass
 
     def get_ui_input_temperature(self):
         return (
@@ -52,8 +56,6 @@ class View1(IncrementalApp):
         for row in self.input_rows:
             row_inputs = []
             for entry in row:
-                print(entry)
-                print("Entry type:", str(type(entry)))
                 if isinstance(entry, wx.Choice):
                     row_inputs.append(entry.GetSelection())
                 else:
@@ -77,7 +79,7 @@ class View1(IncrementalApp):
 
     def _add_title_row(self, row_title):
         row = wx.StaticText(
-            self, wx.ID_ANY, row_title,
+            self.m_autoPanel, wx.ID_ANY, row_title,
             wx.DefaultPosition, wx.DefaultSize, 0
         )
         row.Wrap(-1)
@@ -86,7 +88,7 @@ class View1(IncrementalApp):
 
     def _add_checkbox(self, number):
         checkbox = wx.CheckBox(
-            self, wx.ID_ANY, number, wx.DefaultPosition,
+            self.m_autoPanel, wx.ID_ANY, number, wx.DefaultPosition,
             wx.DefaultSize, 0
         )
         self.fgSizerAuto.Add(checkbox, 0, wx.ALL, 5)
@@ -94,7 +96,7 @@ class View1(IncrementalApp):
 
     def _add_textctrl(self):
         text_ctrl = wx.TextCtrl(
-            self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition,
+            self.m_autoPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition,
             wx.DefaultSize, 0
         )
         text_ctrl.SetMaxSize(wx.Size(50, -1))
@@ -103,7 +105,8 @@ class View1(IncrementalApp):
 
     def _add_dropdown(self, options):
         dropdown = wx.Choice(
-            self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, options, 0
+            self.m_autoPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
+            options, 0
         )
         dropdown.SetSelection(0)
         self.fgSizerAuto.Add(dropdown, 0, wx.ALL, 5)
