@@ -42,11 +42,9 @@ class MeasurementHandler(object):
         self._queue.append((daq_io_thread, metadata))
 
     def single_measurement(self):
-        print("print single_measurement")
         thread_time = None
         data_set = []
 
-        print("Items in queue: ", self._queue)
         element = self._queue.popleft()
 
         averaging = element[1].averaging
@@ -83,15 +81,15 @@ class MeasurementHandler(object):
 
         for element in self._queue:
             single_dataset = self.single_measurement()
-            print("single dataset: ", single_dataset)
             dataset_list.append(single_dataset)
             total_measurements = total_measurements + 1
             self._logger.info(
                 'Measurement #{0} complete'.format(total_measurements)
             )
-        print dataset_list
         self._logger.info(
             'Total: {0} measurements performed'.format(total_measurements)
         )
 
         return dataset_list
+
+

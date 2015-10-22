@@ -142,7 +142,7 @@ class PlaceholderController(object):
         )
 
         calibration_data = measurement_handler.single_measurement()
-        self.view.metadata.update_pc_calibration_data(calibration_data)
+        self.view.metadata.pc_calibration.update_data(calibration_data)
         # We then plot the datas, this has to be changed if the plots want
         # to be updated on the fly.
 

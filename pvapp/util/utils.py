@@ -66,10 +66,11 @@ def save_metadata(metadata_dict, filename, filepath):
             text_file.write(serialised_json)
 
 
-def load_metadata(full_filepath):
+def load_metadata(filename, filepath):
     """
     Loads metadata file and returns a python dictionary
     """
+    full_filepath = os.path.join(filename, filepath)
 
     with open(full_filepath, 'r') as f:
         file_contents = f.read()

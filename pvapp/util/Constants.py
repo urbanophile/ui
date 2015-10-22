@@ -10,12 +10,12 @@ INPUT_VOLTAGE_RANGE_STR = ['+/- 10', '+/- 5', '+/- 2', '+/- 1']
 
 OUTPUT_VOLTAGE_RANGE = 5
 
-WAVEFORMS = ["Cos", "Sin", "Square",
-             "Triangle", "MattiasCustom", "FrequencyScan"]
+WAVEFORMS = ["Sin", "Square", "FrequencyScan",
+             "Triangle", "Cos"]
 OUTPUTS = ['Low (50mA/V)', 'High (2A/V)']
 
 
-########## NI-DAQmx specific rates 
+########## NI-DAQmx specific rates
 # These values are specific to NI-DAQmx
 
 # Magic numbers relating to hardware. They convert sent voltage to current.
