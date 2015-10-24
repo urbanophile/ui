@@ -25,16 +25,17 @@ class LoadSaveTest(unittest.TestCase):
     def setUpClass(cls):
         cls.test_metadata = {
             "waveform": "sin",
+            "duration": 1.0,
 
-            "Channel": "Low (50mA/V)",
-            "Intensity_v": 4,
-            "Measurement_Binning": 1,
-            "Offset_Before_ms": 4.0,
-            "Offset_After_ms": 5.0,
-            "Peroid_s": 1.0,
-            "Threshold_mA": 150.0,
+            "amplitude": 4,
+            "offset_before": 4.0,
+            "offset_after": 5.0,
 
-            "Averaging": 1,
+            "sample_rate": 1.2e3,
+            "channel": "Low (50mA/V)",
+
+            "binning": 1,
+            "averaging": 1,
         }
 
         cls.multiple_settings = [

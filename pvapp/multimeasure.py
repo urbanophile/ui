@@ -17,8 +17,27 @@ class View1(IncrementalApp):
 
         self.dirname = os.getcwd()
         self.data_file = None
-        self.input_rows = []
 
+        # hardware layout
+        self._pl_calibration_labels = [
+            "Self-consistent",
+            "Nan's method",
+            "Other",
+            "None"
+        ]
+        self._yes_no_labels = [
+            "Yes",
+            "No"
+        ]
+
+        self._num_sides_labels = [
+            "1 side",
+            "2 sides"
+        ]
+        self._set_hardware_dropdowns()
+
+        # experiment settings layout
+        self.input_rows = []
         column_titles_str = [
             u"", u"Waveform", u"Period", u"Amplitude", u"Offset1",
             u"Offset2", u"Sample Rate", u"LED state", u"Filter", u"Binning"
@@ -41,8 +60,8 @@ class View1(IncrementalApp):
 
         self.Layout()
 
-    def _set_hardware_dropdowns(self):
-        pass
+        self._set_ui_validators()
+        self._bind_checkbox_disable()
 
     def get_ui_input_temperature(self):
         return (
@@ -63,8 +82,51 @@ class View1(IncrementalApp):
             inputs.append(row_inputs)
         return inputs
 
-    def set_ui_input(self):
+    def set_ui_input_temperature(self):
         pass
+
+    def set_ui_input_settings(self):
+        pass
+
+    def disable_all_settings_inputs(self):
+        for row in self.input_rows:
+            self._disable_row(row)
+
+    def _bind_checkbox_disable(self):
+        for row in self.input_rows:
+            row[0].Bind(
+                wx.EVT_CHECKBOX,
+                self._disable_part_row
+            )
+
+    def _disable_part_row(self, event):
+        sender = event.GetEventObject()
+
+        checkbox_list = [row[0] for row in self.input_rows]
+        row_num = checkbox_list.index(sender)
+
+        isChecked = sender.GetValue()
+
+        if isChecked:
+            self._enable_row(self.input_rows[row_num], start_element=1)
+        else:
+            self._disable_row(self.input_rows[row_num], start_element=1)
+
+    def _disable_row(self, row, start_element=0):
+        for index, element in enumerate(row):
+            if index >= start_element:
+                element.Disable()
+
+    def _enable_row(self, row, start_element=0):
+        for index, element in enumerate(row):
+            if index >= start_element:
+                element.Enable()
+
+    def _set_hardware_dropdowns(self):
+        self.m_plCalibrationMethod.SetItems(self._pl_calibration_labels)
+        self.m_waferCodoped.SetItems(self._yes_no_labels)
+        self.m_waferDiffused.SetItems(self._yes_no_labels)
+        self.m_waferNumSides.SetItems(self._num_sides_labels)
 
     def _add_row(self, number):
         row_elements = []
@@ -91,6 +153,7 @@ class View1(IncrementalApp):
             self.m_autoPanel, wx.ID_ANY, number, wx.DefaultPosition,
             wx.DefaultSize, 0
         )
+        checkbox.SetValue(True)
         self.fgSizerAuto.Add(checkbox, 0, wx.ALL, 5)
         return checkbox
 
@@ -144,17 +207,26 @@ class Controller(object):
         super(Controller, self).__init__()
         self.view1 = View1(None)
 
+        self.data_dir = None
         self._set_event_bindings()
         self.view1.Show()
 
         self.measurement_handler = MeasurementHandler()
+
+    def data_output_dir(self, event):
+
+        print("save data dir")
+        self.data_dir, file_name = self.view1.askUserForFilename(
+            style=wx.SAVE,
+            **self.view1.default_file_dialog_options()
+        )
 
     def save_settings(self, event):
 
         print(self.view1.get_ui_input_settings())
         print(self.view1.get_ui_input_temperature())
 
-        print("onSaveSettings")
+        print("on save_settings")
         if self.view1.askUserForFilename(
             style=wx.SAVE,
             **self.view1.default_file_dialog_options()
@@ -185,7 +257,7 @@ class Controller(object):
             self.measurement_handler.settings_as_list()
         )
 
-    def hard_mode(self, event):
+    def upload(self, event):
         print("on hard_mode")
         file_name, file_dir = self.view1.askUserForFilename(
             style=wx.OPEN,
@@ -201,6 +273,7 @@ class Controller(object):
                         LightPulse(setting).create_waveform(),
                         setting
                     )
+                self.view1.disable_all_settings_inputs()
             except Exception:
                 pass
 
@@ -212,9 +285,10 @@ class Controller(object):
 
     def _set_event_bindings(self):
 
+        self.view1.m_dataOutputDir.Bind(wx.EVT_BUTTON, self.data_output_dir)
         self.view1.m_save.Bind(wx.EVT_BUTTON, self.save_settings)
         self.view1.m_load.Bind(wx.EVT_BUTTON, self.load_settings)
-        self.view1.m_hardMode.Bind(wx.EVT_BUTTON, self.hard_mode)
+        self.view1.m_upload.Bind(wx.EVT_BUTTON, self.upload)
         self.view1.m_display.Bind(wx.EVT_BUTTON, self.display)
         self.view1.m_performMeasurement.Bind(wx.EVT_BUTTON,
                                              self.perform_measurement)
