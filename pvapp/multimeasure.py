@@ -43,6 +43,21 @@ class View1(IncrementalApp):
             u"Offset2", u"Sample Rate", u"LED state", u"Filter", u"Binning"
         ]
 
+        self.wafer_inputs = {
+            "wafer_id": (self.m_waferID, "string"),
+            "wafer_thickness": (self.m_waferThickness, "float"),
+            "co-doped": (self.m_waferCodoped, "boolean"),
+            "wafer_na": (self.m_waferNA, "float"),
+            "wafer_nd": (self.m_waferND, "float"),
+            "wafer_diffused": (self.m_waferDiffused, "boolean"),
+            "wafer_num_diffused": (self.m_waferNumSides, "string")
+        }
+        self.temperature_inputs = {
+            "start_temp": (self.m_startTemp, "float"),
+            "end_temp": (self.m_endTemp, "float"),
+            "step_temp": (self.m_stepTemp, "float")
+        }
+
         # setup flexible grid sizer for form construction
         self.fgSizerAuto = wx.FlexGridSizer(5, 10, 0, 0)
         self.fgSizerAuto.SetFlexibleDirection(wx.BOTH)
@@ -63,6 +78,12 @@ class View1(IncrementalApp):
         self._set_ui_validators()
         self._bind_checkbox_disable()
 
+        self.set_ui_input_temperature({
+            "start_temp": 1,
+            "end_temp": 5,
+            "step_temp": 1
+        })
+
     def get_ui_input_temperature(self):
         return (
             int(self.m_startTemp.GetValue()),
@@ -82,10 +103,17 @@ class View1(IncrementalApp):
             inputs.append(row_inputs)
         return inputs
 
-    def set_ui_input_temperature(self):
+    def get_ui_input_wafer(self):
         pass
 
+    def set_ui_input_temperature(self, temp_settings):
+        for key, value in temp_settings.items():
+            self.temperature_inputs[key][0].SetValue(str(value))
+
     def set_ui_input_settings(self):
+        pass
+
+    def set_ui_input_wafer(self):
         pass
 
     def disable_all_settings_inputs(self):
@@ -105,9 +133,9 @@ class View1(IncrementalApp):
         checkbox_list = [row[0] for row in self.input_rows]
         row_num = checkbox_list.index(sender)
 
-        isChecked = sender.GetValue()
+        is_checked = sender.GetValue()
 
-        if isChecked:
+        if is_checked:
             self._enable_row(self.input_rows[row_num], start_element=1)
         else:
             self._disable_row(self.input_rows[row_num], start_element=1)
