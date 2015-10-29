@@ -81,9 +81,9 @@ class View1(IncrementalApp):
         ]
 
         self._temperature_form = [
-            FormElement(self.m_startTemp, "start_temp", "float"),
-            FormElement(self.m_endTemp, "end_temp", "float"),
-            FormElement(self.m_stepTemp, "step_temp", "float")
+            FormElement(self.m_startTemp, "start_temp", "int"),
+            FormElement(self.m_endTemp, "end_temp", "int"),
+            FormElement(self.m_stepTemp, "step_temp", "int")
         ]
 
         # setup flexible grid sizer for form construction
@@ -125,7 +125,7 @@ class View1(IncrementalApp):
             "wafer_na": 1,
             "wafer_nd": 6,
             "wafer_diffused": True,
-            "wafer_num_diffused": 1
+            "wafer_num_sides": 1
         })
 
         self.set_experiment_form([
@@ -154,38 +154,54 @@ class View1(IncrementalApp):
         ])
 
     def get_temperature_form(self):
-        typed_inputs = []
+        typed_inputs = {}
 
         for entry in self._temperature_form:
             type_func = known_types[entry.input_type]
             if isinstance(entry.widget, wx.Choice):
-                typed_inputs.append(int(entry.widget.GetSelection()))
+                typed_inputs[entry.widget_id] = int(
+                    entry.widget.GetSelection()
+                )
             else:
-                typed_inputs.append(type_func(entry.widget.GetValue()))
-        return tuple(typed_inputs)
+                typed_inputs[entry.widget_id] = type_func(
+                    entry.widget.GetValue()
+                )
+        return typed_inputs
 
     def get_wafer_form(self):
-        typed_inputs = []
+        typed_inputs = {}
 
         for entry in self._wafer_form:
             type_func = known_types[entry.input_type]
             if isinstance(entry.widget, wx.Choice):
-                typed_inputs.append(int(entry.widget.GetSelection()))
+                typed_inputs[entry.widget_id] = int(
+                    entry.widget.GetSelection()
+                )
             else:
-                typed_inputs.append(type_func(entry.widget.GetValue()))
-        return tuple(typed_inputs)
+                typed_inputs[entry.widget_id] = type_func(
+                    entry.widget.GetValue()
+                )
+        return typed_inputs
 
     def get_experiment_form(self):
         inputs = []
-        for row in self.input_rows:
-            row_inputs = []
+        for row in self._experiment_form:
+            row_inputs = {}
             for entry in row:
-                type_func = known_types[entry.input_type]
-                if isinstance(entry, wx.Choice):
-                    row_inputs.append(int(entry.GetSelection()))
-                else:
-                    row_inputs.append(type_func(entry.GetValue()))
-            inputs.append(row_inputs)
+                try:
+                    type_func = known_types[entry.input_type]
+                    if isinstance(entry.widget, wx.Choice):
+                        row_inputs[entry.widget_id] = int(
+                            entry.widget.GetSelection()
+                        )
+                    else:
+                        row_inputs[entry.widget_id] = type_func(
+                            entry.widget.GetValue()
+                        )
+                except ValueError:
+                    break
+            if len(row_inputs) >= len(self._experiment_form[0]):
+                inputs.append(row_inputs)
         return inputs
 
     def set_wafer_form(self, wafer_settings):

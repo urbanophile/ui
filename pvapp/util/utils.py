@@ -54,6 +54,8 @@ def save_metadata(metadata_dict, filename, filepath):
     print(metadata_dict, type(metadata_dict))
     assert type(metadata_dict) is dict
 
+    print("data: ", metadata_dict)
+
     full_path = os.path.join(filepath, filename + '.json')
     serialised_json = json.dumps(
         metadata_dict,
@@ -63,6 +65,7 @@ def save_metadata(metadata_dict, filename, filepath):
     )
 
     with open(full_path, 'w') as text_file:
+            print("path: ", full_path)
             text_file.write(serialised_json)
 
 

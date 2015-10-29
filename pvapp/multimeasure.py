@@ -22,6 +22,9 @@ class Controller(object):
         self._set_event_bindings()
         self.view1.Show()
 
+        # app state
+        self.uploaded = False
+
         # the hardware interface
         self.measurement_handler = MeasurementHandler()
 
@@ -41,19 +44,21 @@ class Controller(object):
 
     def save_settings(self, event):
         print("on save_settings")
+        settings = {}
+        settings["temperature_settings"] = self.view1.get_temperature_form()
+        settings["wafer_settings"] = self.view1.get_wafer_form()
+        settings["experiment_settings"] = self.view1.get_experiment_form()
+        print(settings["temperature_settings"])
+        print(settings["wafer_settings"])
+        print(settings["experiment_settings"])
 
-        print(self.view1.get_temperature_form())
-        print(self.view1.get_wafer_form())
-        print(self.view1.get_experiment_form())
-
-        if self.view1.askUserForFilename(
+        file_dir, file_name = self.view1.askUserForFilename(
             style=wx.SAVE,
             **self.view1.default_file_dialog_options()
-        ):
+        )
+        if file_dir is not None:
             # utils.save_data(self.Data.Data, self.data_file, self.dirname)
-            save_metadata(
-                self.measurement_handler.settings_as_list()
-            )
+            save_metadata(settings, file_name, file_dir)
 
     def load_settings(self, event):
         print("on load_settings")
