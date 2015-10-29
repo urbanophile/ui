@@ -90,14 +90,6 @@ class WaveformThread(threading.Thread):
     which to play it.
     This will play an arbitrary-length waveform file.
 
-    Attributes
-    ----------
-
-    running
-    sampleRate
-    periodLength
-    time
-
     """
 
     DAQmx_Val_Volts = 10348
@@ -127,29 +119,41 @@ class WaveformThread(threading.Thread):
         self.DEVICE_ID = "Dev3/"
 
         self.running = True
-        # output sample rate
+
         self.periodLength = int((Time * output_sample_rate).item())
 
-        self.sampleRate = float64(1.2e3) # float64(output_sample_rate) # output sample rate
+        self.sampleRate = float64(output_sample_rate)  # output sample rate
         self.input_sample_rate = float64(input_sample_rate)
+
+        #
         self.Time = Time
+
+        # Analogue output channel on which the waveform will be played
         self.Channel = Channel
 
         # this controls the input voltage range. (+-10,+-5, +-2,+-1)
         self.InputVoltageRange = input_voltage_range
-
         self.OutputVoltageRange = output_voltage_range
 
+        # These are IDs for the the read and write tasks
         self.taskHandle_Write = TaskHandle(0)
         self.taskHandle_Read = TaskHandle(1)
 
         self.Write_data = np.zeros((self.periodLength,), dtype=np.float64)
 
+        # BUG: this doesn't copy the waveform exactly
+        # several trailing numbers are truncated.
         assert self.periodLength
-        for i in range(self.periodLength):
+        for i in range(self.periodLength - 1):
             self.Write_data[i] = waveform[i]
 
-        # functions to configure the DAQ
+        # Note: this ensures that the DAQ the LED is not on after the last
+        # part of the waveform has been played.
+        self.Write_data[int(self.periodLength) - 1] = 0
+
+        # functions to configure the DAQ through the API
+        # TODO: configure this so app doesn't crash when
+        # self.setup()
 
     def setup(self):
         self.Setup_Write()
@@ -204,7 +208,6 @@ class WaveformThread(threading.Thread):
         ))  # reserved
         threading.Thread.__init__(self)
         print('Finish Setup_Write')
-
 
     def Setup_Read(self, Time, input_sample_rate):
         print('Waveform: Setup_Read')
@@ -292,29 +295,9 @@ class WaveformThread(threading.Thread):
         nidaq.DAQmxClearTask(self.taskHandle_Read)
 
 
-class LightPulse():
+class LightPulse(object):
     """
     Represents different wave forms to be sent to play
-
-    Attributes
-    ----------
-    Waveform: str
-        String for waveform type in Sin, FrequencyScan, Square, Cos,
-        Triangle, MJ
-    Amplitude: float
-        negative and in volts
-    Offset_Before: float
-        in milliseconds
-    Offset_After: float
-        in milliseconds
-    Duration: float
-        a positive time in milliseconds
-    Voltage_Threshold: float
-        ???
-    time_array: array
-        evenly spaced points over the time interval
-    complete_waveform: array
-        array of waveform intensity values including offsets
     """
 
     def __init__(self, metadata):
