@@ -108,6 +108,7 @@ class WaveformThread(threading.Thread):
                  output_sample_rate,
                  input_sample_rate):
 
+        print("Channel: ", Channel)
         assert isinstance(waveform, np.ndarray)
         assert Channel in ['ao1', 'ao0']
         assert input_voltage_range in [10, 5, 2, 1]

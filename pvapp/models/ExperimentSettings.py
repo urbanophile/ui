@@ -1,5 +1,6 @@
 from PCCalibrationData import PCCalibrationData
 from util.Constants import (
+    OUTPUTS,
     LOW_VOLTAGE_LIMIT,
     HIGH_VOLTAGE_LIMIT,
     THRESHOLD_CONST,
@@ -14,7 +15,7 @@ class ExperimentSettings(object):
 
     def __init__(self, waveform='Sin', duration=1, amplitude=0.5,
                  offset_before=1, offset_after=10, sample_rate=1.2e3,
-                 channel=r'High (2A/V)', binning=1, averaging=1):
+                 channel=1, binning=1, averaging=1):
 
         self.waveform = waveform
 
@@ -25,7 +26,7 @@ class ExperimentSettings(object):
         self.offset_after = offset_after  # seconds
 
         self.sample_rate = sample_rate
-        self.channel = channel
+        self.channel = OUTPUTS[channel]
 
         self.binning = binning
         self.averaging = averaging

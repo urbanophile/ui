@@ -73,11 +73,11 @@ class View1(IncrementalApp):
         self._wafer_form = [
             FormElement(self.m_waferID, "wafer_id", "str"),
             FormElement(self.m_waferThickness, "wafer_thickness", "float"),
-            FormElement(self.m_waferCodoped, "co-doped", "bool"),
+            FormElement(self.m_waferCodoped, "wafer_codoped", "bool"),
             FormElement(self.m_waferNA, "wafer_na", "float"),
             FormElement(self.m_waferND, "wafer_nd", "float"),
             FormElement(self.m_waferDiffused, "wafer_diffused", "bool"),
-            FormElement(self.m_waferNumSides, "wafer_num_diffused", "str")
+            FormElement(self.m_waferNumSides, "wafer_num_sides", "str")
         ]
 
         self._temperature_form = [
@@ -109,7 +109,7 @@ class View1(IncrementalApp):
         self._set_ui_validators()
         self._bind_checkbox_disable()
 
-        self._test_setters()
+        # self._test_setters()
 
     def _test_setters(self):
         self.set_temperature_form({
@@ -121,7 +121,7 @@ class View1(IncrementalApp):
         self.set_wafer_form({
             "wafer_id": "wafer1",
             "wafer_thickness": 33.0,
-            "co-doped": True,
+            "wafer_codoped": True,
             "wafer_na": 1,
             "wafer_nd": 6,
             "wafer_diffused": True,
@@ -191,6 +191,7 @@ class View1(IncrementalApp):
     def set_wafer_form(self, wafer_settings):
         for element in self._wafer_form:
             widget = element.widget
+            print("wafer settings: ", wafer_settings)
             value = wafer_settings[element.widget_id]
             if isinstance(widget, wx.Choice):
                 widget.SetSelection(value)

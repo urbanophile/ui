@@ -33,6 +33,7 @@ class MeasurementHandler(object):
         return daq_io_thread.Read_Data, daq_io_thread.time
 
     def add_to_queue(self, waveform_array, metadata):
+        print("Channel name")
         daq_io_thread = WaveformThread(
             waveform=waveform_array,
             Channel=metadata.channel_name,
@@ -105,3 +106,9 @@ class MeasurementHandler(object):
         )
 
         return self.single_measurement()
+
+    def as_list(self):
+        experiment_list = []
+        for experiment in self._queue:
+            experiment_list.append(experiment[1].as_dict())
+        return experiment_list

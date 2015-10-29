@@ -6,6 +6,8 @@ from hardware.MeasurementHandler import MeasurementHandler
 from models.ExperimentSettings import ExperimentSettings
 from models.LightPulse import LightPulse
 from models.PCCalibrationData import PCCalibrationData
+from models.TemperatureSettings import TemperatureSettings
+from models.Wafer import Wafer
 
 from util.utils import load_metadata, save_metadata
 
@@ -23,6 +25,9 @@ class Controller(object):
         # the hardware interface
         self.measurement_handler = MeasurementHandler()
 
+        # settings
+        self.temperature_settings = None
+        self.wafer_settings = None
         # data sets
         self.pc_calibration_data = PCCalibrationData()
 
@@ -57,22 +62,32 @@ class Controller(object):
             **self.view1.default_file_dialog_options()
         )
         if file_dir is not None:
-            try:
-                config_dict = load_metadata(file_name, file_dir)
-                settings_list = self._parse_config(config_dict)
-                for setting in settings_list:
-                    self.measurement_handler.add_to_queue(
-                        LightPulse(setting).create_waveform(),
-                        setting
-                    )
-            except Exception:
-                pass
+            # try:
+            config_dict = load_metadata(file_name, file_dir)
+            settings = self._parse_config(config_dict)
+            for setting in settings["experiment_settings"]:
+                print("Setting: ", setting)
+                self.measurement_handler.add_to_queue(
+                    LightPulse(setting).create_waveform(),
+                    setting
+                )
+            self.wafer_settings = settings["wafer_settings"]
+            self.temperature_settings = settings["temp_settings"]
+            print("success")
+            # except Exception as e:
+            #     print("an Exception occured:{0}".format(e))
         self.view1.set_experiment_form(
-            self.measurement_handler.settings_as_list()
+            self.measurement_handler.as_list()
+        )
+        self.view1.set_wafer_form(
+            self.wafer_settings.as_dict()
+        )
+        self.view1.set_temperature_form(
+            self.temperature_settings.as_dict()
         )
 
     def upload(self, event):
-        print("on hard_mode")
+        print("upload: ")
         file_name, file_dir = self.view1.askUserForFilename(
             style=wx.OPEN,
             **self.view1.default_file_dialog_options()
@@ -81,8 +96,8 @@ class Controller(object):
         if file_dir is not None:
             try:
                 config_dict = load_metadata(file_name, file_dir)
-                settings_list = self._parse_config(config_dict)
-                for setting in settings_list:
+                settings = self._parse_config(config_dict)
+                for setting in settings["experiment_settings"]:
                     self.measurement_handler.add_to_queue(
                         LightPulse(setting).create_waveform(),
                         setting
@@ -131,22 +146,40 @@ class Controller(object):
         )
 
     def _parse_config(self, config):
+        settings = {}
         measurement_list = []
-        for item in config:
-            self.measurement_list.append(
+        experiments_list = config["experiment_settings"]
+        for item in experiments_list:
+            print("Item: ", item)
+            measurement_list.append(
                 ExperimentSettings(
-                    waveform=config['waveform'],
-                    duration=config['duration'],
-                    amplitude=config['amplitude'],
-                    offset_before=config['offset_before'],
-                    offset_after=config['offset_after'],
-                    sample_rate=config['sample_rate'],
-                    channel=config['channel'],
-                    binning=config['binning'],
-                    averaging=config['averaging']
+                    waveform=item['waveform'],
+                    duration=item['duration'],
+                    amplitude=item['amplitude'],
+                    offset_before=item['offset_before'],
+                    offset_after=item['offset_after'],
+                    sample_rate=item['sample_rate'],
+                    channel=item['channel'],
+                    binning=item['binning'],
+                    averaging=item['averaging']
                 )
             )
-        return measurement_list
+        settings["experiment_settings"] = measurement_list
+        settings["temp_settings"] = TemperatureSettings(
+            start_temp=config["temperature_settings"]["start_temp"],
+            end_temp=config["temperature_settings"]["end_temp"],
+            step_temp=config["temperature_settings"]["step_temp"]
+        )
+        settings["wafer_settings"] = Wafer(
+            wafer_id=config["wafer_settings"]["wafer_id"],
+            thickness=config["wafer_settings"]["wafer_thickness"],
+            codoped=config["wafer_settings"]["wafer_codoped"],
+            na=config["wafer_settings"]["wafer_na"],
+            nd=config["wafer_settings"]["wafer_nd"],
+            diffused=config["wafer_settings"]["wafer_diffused"],
+            num_sides=config["wafer_settings"]["wafer_num_sides"]
+        )
+        return settings
 
 if __name__ == "__main__":
     app = wx.App(False)

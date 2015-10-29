@@ -23,56 +23,47 @@ class LoadSaveTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.test_metadata = {
-            "waveform": "sin",
-            "duration": 1.0,
 
-            "amplitude": 4,
-            "offset_before": 4.0,
-            "offset_after": 5.0,
+        self.set_temperature_form({
+            "start_temp": 1,
+            "end_temp": 5,
+            "step_temp": 1
+        })
 
-            "sample_rate": 1.2e3,
-            "channel": "Low (50mA/V)",
+        self.set_wafer_form({
+            "wafer_id": "wafer1",
+            "wafer_thickness": 33.0,
+            "co-doped": True,
+            "wafer_na": 1,
+            "wafer_nd": 6,
+            "wafer_diffused": True,
+            "wafer_num_diffused": 1
+        })
 
-            "binning": 1,
-            "averaging": 1,
-        }
-
-        cls.multiple_settings = [
+        self.set_experiment_form([
             {
-                "Averaging": 1,
-                "Channel": "Low (50mA/V)",
-                "Intensity_v": 4,
-                "Measurement_Binning": 1,
-                "Offset_After_ms": 5.0,
-                "Offset_Before_ms": 4.0,
-                "Peroid_s": 1.0,
-                "Threshold_mA": 150.0,
-                "Waveform": "FrequencyScan"
+                "waveform": 0,
+                "duration": 1,
+                "amplitude": 0.5,
+                "offset_before": 1,
+                "offset_after": 10,
+                "sample_rate": 1.2e3,
+                "channel": 0,
+                "binning": 1,
+                "averaging": 1,
             },
             {
-                "Averaging": 1,
-                "Channel": "Low (50mA/V)",
-                "Intensity_v": 4,
-                "Measurement_Binning": 1,
-                "Offset_After_ms": 5.0,
-                "Offset_Before_ms": 4.0,
-                "Peroid_s": 1.0,
-                "Threshold_mA": 150.0,
-                "Waveform": "FrequencyScan"
-            },
-            {
-                "Averaging": 1,
-                "Channel": "Low (50mA/V)",
-                "Intensity_v": 4,
-                "Measurement_Binning": 1,
-                "Offset_After_ms": 5.0,
-                "Offset_Before_ms": 4.0,
-                "Peroid_s": 1.0,
-                "Threshold_mA": 150.0,
-                "Waveform": "FrequencyScan"
+                "waveform": 1,
+                "duration": 1,
+                "amplitude": 0.5,
+                "offset_before": 1,
+                "offset_after": 10,
+                "sample_rate": 1.2e3,
+                "channel": 1,
+                "binning": 1,
+                "averaging": 5,
             }
-        ]
+        ])
 
         cls.test_data = np.array([1, 1, 1, 1])
         cls.fname = "test_data"

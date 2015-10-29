@@ -1,9 +1,10 @@
 class Wafer(object):
     """Physical properties of the silicon wafer"""
 
-    def __init__(self, thickness, codoped, na, nd,
+    def __init__(self, wafer_id, thickness, codoped, na, nd,
                  diffused, num_sides):
         """
+            id: identifier for wafer
             thickness: thickness of the wafer (in mm)
             codoped: unclear what this means
             na: acceptor concentration
@@ -11,7 +12,7 @@ class Wafer(object):
             diffused: unclear what this means
             num_sides: Number of sides on which it's diffused
         """
-
+        self.id = wafer_id
         self.thickness = thickness
         self.codoped = codoped
         self.na = na
@@ -21,10 +22,11 @@ class Wafer(object):
 
     def as_dict(self):
         return {
-            "thickness": self.thickness,
-            "codoped": self.codoped,
-            "na": self.na,
-            "nd": self.nd,
-            "diffused": self.diffused,
-            "num_sides": self.num_sides
+            "wafer_id": self.id,
+            "wafer_thickness": self.thickness,
+            "wafer_codoped": self.codoped,
+            "wafer_na": self.na,
+            "wafer_nd": self.nd,
+            "wafer_diffused": self.diffused,
+            "wafer_num_sides": self.num_sides
         }

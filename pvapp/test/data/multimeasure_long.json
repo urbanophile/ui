@@ -1,0 +1,73 @@
+{
+    "temperature_settings": {
+        "start_temp": 1,
+        "end_temp": 5,
+        "step_temp": 1
+    },
+    "wafer_settings": {
+        "wafer_id": "wafer1",
+        "wafer_thickness": 33,
+        "co-doped": true,
+        "wafer_na": 1,
+        "wafer_nd": 6,
+        "wafer_diffused": true,
+        "wafer_num_diffused": 1
+    },
+    "experiment_settings": [
+        {
+            "waveform": 0,
+            "duration": 1,
+            "amplitude": 0.5,
+            "offset_before": 1,
+            "offset_after": 10,
+            "sample_rate": 1.2e3,
+            "channel": 0,
+            "binning": 1,
+            "averaging": 1
+        },
+        {
+            "waveform": 1,
+            "duration": 1,
+            "amplitude": 0.5,
+            "offset_before": 1,
+            "offset_after": 10,
+            "sample_rate": 12e3,
+            "channel": 1,
+            "binning": 1,
+            "averaging": 5
+        },
+        {
+            "waveform": 0,
+            "duration": 1,
+            "amplitude": 0.5,
+            "offset_before": 1,
+            "offset_after": 10,
+            "sample_rate": 1.2e3,
+            "channel": 0,
+            "binning": 1,
+            "averaging": 1
+        },
+        {
+            "waveform": 0,
+            "duration": 1,
+            "amplitude": 0.5,
+            "offset_before": 1,
+            "offset_after": 10,
+            "sample_rate": 1.2e3,
+            "channel": 0,
+            "binning": 1,
+            "averaging": 1
+        },
+        {
+            "waveform": 1,
+            "duration": 1,
+            "amplitude": 0.5,
+            "offset_before": 1,
+            "offset_after": 10,
+            "sample_rate": 12e3,
+            "channel": 1,
+            "binning": 1,
+            "averaging": 5
+        }
+    ]
+}
