@@ -7,11 +7,11 @@
     "wafer_settings": {
         "wafer_id": "wafer1",
         "wafer_thickness": 33,
-        "co-doped": true,
+        "wafer_codoped": true,
         "wafer_na": 1,
         "wafer_nd": 6,
         "wafer_diffused": true,
-        "wafer_num_diffused": 1
+        "wafer_num_sides": 1
     },
     "experiment_settings": [
         {

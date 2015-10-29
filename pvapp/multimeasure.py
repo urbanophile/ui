@@ -88,23 +88,35 @@ class Controller(object):
 
     def upload(self, event):
         print("upload: ")
-        file_name, file_dir = self.view1.askUserForFilename(
+        file_dir, file_name = self.view1.askUserForFilename(
             style=wx.OPEN,
             **self.view1.default_file_dialog_options()
         )
-
         if file_dir is not None:
-            try:
-                config_dict = load_metadata(file_name, file_dir)
-                settings = self._parse_config(config_dict)
-                for setting in settings["experiment_settings"]:
-                    self.measurement_handler.add_to_queue(
-                        LightPulse(setting).create_waveform(),
-                        setting
-                    )
-                self.view1.disable_all_settings_inputs()
-            except Exception:
-                pass
+            config_dict = load_metadata(file_name, file_dir)
+            settings = self._parse_config(config_dict)
+            for setting in settings["experiment_settings"]:
+                print("Setting: ", setting)
+                self.measurement_handler.add_to_queue(
+                    LightPulse(setting).create_waveform(),
+                    setting
+                )
+            self.wafer_settings = settings["wafer_settings"]
+            self.temperature_settings = settings["temp_settings"]
+            print("success")
+
+        self.view1.set_wafer_form(
+            self.wafer_settings.as_dict()
+        )
+        self.view1.set_temperature_form(
+            self.temperature_settings.as_dict()
+        )
+        self.view1.disable_all_settings_inputs()
+        self.view1.show_info_modal(
+            "{0} experiment settings uploaded successfully!".format(
+                len(self.measurement_handler._queue)
+            )
+        )
 
     def display(self, event):
         pass
