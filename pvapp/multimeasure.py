@@ -109,6 +109,10 @@ class Controller(object):
 
         self.pc_calibration.update_data(pc_data)
 
+    def show_calibration_const(self, event):
+        message = str(self.pc_calibration_data.as_dict())
+        self.view1.show_info_modal(message)
+
     def _set_event_bindings(self):
 
         self.view1.m_dataOutputDir.Bind(wx.EVT_BUTTON, self.data_output_dir)
@@ -116,10 +120,15 @@ class Controller(object):
         self.view1.m_load.Bind(wx.EVT_BUTTON, self.load_settings)
         self.view1.m_upload.Bind(wx.EVT_BUTTON, self.upload)
         self.view1.m_display.Bind(wx.EVT_BUTTON, self.display)
-        self.view1.m_performMeasurement.Bind(wx.EVT_BUTTON,
-                                             self.perform_measurement)
-        self.view1.m_calibratePC.Bind(wx.EVT_BUTTON,
-                                      self.calibrate_pc)
+        self.view1.m_performMeasurement.Bind(
+            wx.EVT_BUTTON, self.perform_measurement
+        )
+        self.view1.m_calibratePC.Bind(
+            wx.EVT_BUTTON, self.calibrate_pc
+        )
+        self.view1.m_showCalibrationConst.Bind(
+            wx.EVT_BUTTON, self.show_calibration_const
+        )
 
     def _parse_config(self, config):
         measurement_list = []

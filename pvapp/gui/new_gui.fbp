@@ -6335,7 +6335,7 @@
                                                     <property name="label">View Calibration Const</property>
                                                     <property name="maximum_size"></property>
                                                     <property name="minimum_size"></property>
-                                                    <property name="name">m_button14</property>
+                                                    <property name="name">m_showCalibrationConst</property>
                                                     <property name="permission">protected</property>
                                                     <property name="pos"></property>
                                                     <property name="size"></property>

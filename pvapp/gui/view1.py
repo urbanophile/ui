@@ -5,6 +5,13 @@ from gui.new_gui import IncrementalApp
 from gui.Validator import NumRangeValidator
 from util.Constants import WAVEFORMS, OUTPUTS
 
+known_types = {
+    'int': int,
+    'float': float,
+    'str': str,
+    'bool': bool
+}
+
 
 class FormElement(object):
     """docstring for FormElement"""
@@ -29,8 +36,8 @@ class View1(IncrementalApp):
             "Other"
         ]
         self._yes_no_labels = [
-            "Yes",
-            "No"
+            "No",
+            "Yes"
         ]
 
         self._num_sides_labels = [
@@ -177,7 +184,7 @@ class View1(IncrementalApp):
                 if isinstance(entry, wx.Choice):
                     row_inputs.append(int(entry.GetSelection()))
                 else:
-                    row_inputs.append(entry.GetValue())
+                    row_inputs.append(type_func(entry.GetValue()))
             inputs.append(row_inputs)
         return inputs
 
@@ -216,6 +223,9 @@ class View1(IncrementalApp):
             "Only one PC calibration is necessary per experimental session"
         )
         wx.MessageBox(msg_text, 'Info', wx.OK | wx.ICON_INFORMATION)
+
+    def show_info_modal(self, message_text):
+        wx.MessageBox(message_text, 'Info', wx.OK | wx.ICON_INFORMATION)
 
     def _bind_checkbox_disable(self):
         for row in self.input_rows:
@@ -324,11 +334,3 @@ class View1(IncrementalApp):
             path_parameters = dialog.GetFilename(), dialog.GetDirectory()
         dialog.Destroy()
         return path_parameters
-
-
-known_types = {
-    'int': int,
-    'float': float,
-    'str': str,
-    'bool': bool
-}
