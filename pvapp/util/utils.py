@@ -47,7 +47,7 @@ def save_data(data, filename, filepath):
     np.savetxt(full_path, data, delimiter='\t', header=variables)
 
 
-def save_metadata(metadata_dict, filename, filepath):
+def save_metadata(metadata_dict, file_dir, file_name):
     """
     Writes experimental metadata to JSON file
     """
@@ -56,7 +56,7 @@ def save_metadata(metadata_dict, filename, filepath):
 
     print("data: ", metadata_dict)
 
-    full_path = os.path.join(filepath, filename + '.json')
+    full_path = os.path.join(file_dir, file_name + '.json')
     serialised_json = json.dumps(
         metadata_dict,
         sort_keys=True,
