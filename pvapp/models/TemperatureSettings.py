@@ -11,4 +11,3 @@ class TemperatureSettings(object):
 
     def __repr__(self):
         return "{0}".format(self.__dict__())
-

@@ -2,7 +2,7 @@ import wx
 
 from gui.view1 import View1
 
-from util.Models import ExperimentSettings
+from models.ExperimentSettings import ExperimentSettings
 from util.utils import load_metadata, save_metadata
 from hardware.daq import LightPulse
 from hardware.MeasurementHandler import MeasurementHandler

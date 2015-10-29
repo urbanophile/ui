@@ -5,7 +5,7 @@ import numpy as np
 
 from hardware.daq import LightPulse
 from hardware.MeasurementHandler import MeasurementHandler
-from util.Models import ExperimentSettings
+from models.ExperimentSettings import ExperimentSettings
 
 from testfixtures import log_capture
 

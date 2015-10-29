@@ -3,7 +3,7 @@ import matplotlib.figure as plt
 import numpy as np
 # from gui.Canvas import CanvasPanel
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-from util.Models import ExperimentData
+from models.ExperimentData import ExperimentData
 import wx.lib.inspection
 
 
@@ -15,8 +15,10 @@ SLIDER_MAX = 100
 SLIDER_INITIAL = 100
 HEIGHT = 2
 
+
 def enum(**enums):
     return type('Enum', (), enums)
+
 
 class BoxSizerFrame(wx.Frame):
 

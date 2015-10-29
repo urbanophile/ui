@@ -15,9 +15,8 @@ from hardware.MeasurementHandler import MeasurementHandler
 from Canvas import CanvasPanel
 from DataPanel import DataPanel
 from Validator import NumRangeValidator
-from util.Models import ExperimentData, ExperimentSettings
-# import sys
-
+from models.ExperimentData import ExperimentData
+from models.ExperimentSettings import ExperimentSettings
 
 from FrameSkeleton import FrameSkeleton  # import the newly created GUI file
 from wx.lib.pubsub import pub

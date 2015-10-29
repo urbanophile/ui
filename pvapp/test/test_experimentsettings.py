@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from util.Models import ExperimentSettings
+from models.ExperimentSettings import ExperimentSettings
 
 
 class ExperimentSettingsTest(unittest.TestCase):

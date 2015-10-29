@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from hardware.daq import LightPulse
-from util.Models import ExperimentSettings
+from models.ExperimentSettings import ExperimentSettings
 
 
 class LightPulseTest(unittest.TestCase):
