@@ -52,25 +52,25 @@ class View1(IncrementalApp):
 
         for row_index in xrange(self.NUM_ROWS):
             self._experiment_form.append([
-                FormElement(None, "waveform", "string"),
+                FormElement(None, "waveform", "str"),
                 FormElement(None, "duration", "int"),
                 FormElement(None, "amplitude", "float"),
                 FormElement(None, "offset_before", "int"),
                 FormElement(None, "offset_after", "int"),
                 FormElement(None, "sample_rate", "float"),
-                FormElement(None, "channel", "string"),
+                FormElement(None, "channel", "str"),
                 FormElement(None, "binning", "int"),
                 FormElement(None, "averaging", "int")
             ])
 
         self._wafer_form = [
-            FormElement(self.m_waferID, "wafer_id", "string"),
+            FormElement(self.m_waferID, "wafer_id", "str"),
             FormElement(self.m_waferThickness, "wafer_thickness", "float"),
-            FormElement(self.m_waferCodoped, "co-doped", "boolean"),
+            FormElement(self.m_waferCodoped, "co-doped", "bool"),
             FormElement(self.m_waferNA, "wafer_na", "float"),
             FormElement(self.m_waferND, "wafer_nd", "float"),
-            FormElement(self.m_waferDiffused, "wafer_diffused", "boolean"),
-            FormElement(self.m_waferNumSides, "wafer_num_diffused", "string")
+            FormElement(self.m_waferDiffused, "wafer_diffused", "bool"),
+            FormElement(self.m_waferNumSides, "wafer_num_diffused", "str")
         ]
 
         self._temperature_form = [
@@ -147,28 +147,48 @@ class View1(IncrementalApp):
         ])
 
     def get_temperature_form(self):
+        typed_inputs = []
+
         for entry in self._temperature_form:
-            pass
-        return (
-            int(self.m_startTemp.GetValue()),
-            int(self.m_endTemp.GetValue()),
-            int(self.m_stepTemp.GetValue())
-        )
+            type_func = known_types[entry.input_type]
+            if isinstance(entry.widget, wx.Choice):
+                typed_inputs.append(int(entry.widget.GetSelection()))
+            else:
+                typed_inputs.append(type_func(entry.widget.GetValue()))
+        return tuple(typed_inputs)
+
+    def get_wafer_form(self):
+        typed_inputs = []
+
+        for entry in self._wafer_form:
+            type_func = known_types[entry.input_type]
+            if isinstance(entry.widget, wx.Choice):
+                typed_inputs.append(int(entry.widget.GetSelection()))
+            else:
+                typed_inputs.append(type_func(entry.widget.GetValue()))
+        return tuple(typed_inputs)
 
     def get_experiment_form(self):
         inputs = []
         for row in self.input_rows:
             row_inputs = []
             for entry in row:
+                type_func = known_types[entry.input_type]
                 if isinstance(entry, wx.Choice):
-                    row_inputs.append(entry.GetSelection())
+                    row_inputs.append(int(entry.GetSelection()))
                 else:
                     row_inputs.append(entry.GetValue())
             inputs.append(row_inputs)
         return inputs
 
-    def get_wafer_form(self, wafer_settings):
-        pass
+    def set_wafer_form(self, wafer_settings):
+        for element in self._wafer_form:
+            widget = element.widget
+            value = wafer_settings[element.widget_id]
+            if isinstance(widget, wx.Choice):
+                widget.SetSelection(value)
+            else:
+                widget.SetValue(str(value))
 
     def set_temperature_form(self, temp_settings):
         for element in self._temperature_form:
@@ -185,15 +205,6 @@ class View1(IncrementalApp):
                         element.widget.SetValue(str(value))
                 except Exception as e:
                     pass
-
-    def set_wafer_form(self, wafer_settings):
-        for element in self._wafer_form:
-            widget = element.widget
-            value = wafer_settings[element.widget_id]
-            if isinstance(widget, wx.Choice):
-                widget.SetSelection(value)
-            else:
-                widget.SetValue(str(value))
 
     def disable_all_settings_inputs(self):
         for row in self.input_rows:
@@ -306,3 +317,11 @@ class View1(IncrementalApp):
             path_parameters = dialog.GetFilename(), dialog.GetDirectory()
         dialog.Destroy()
         return path_parameters
+
+
+known_types = {
+    'int': int,
+    'float': float,
+    'str': str,
+    'bool': bool
+}

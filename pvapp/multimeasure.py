@@ -29,11 +29,12 @@ class Controller(object):
         )
 
     def save_settings(self, event):
-
-        print(self.view1.get_ui_input_settings())
-        print(self.view1.get_ui_input_temperature())
-
         print("on save_settings")
+
+        print(self.view1.get_temperature_form())
+        print(self.view1.get_wafer_form())
+        print(self.view1.get_experiment_form())
+
         if self.view1.askUserForFilename(
             style=wx.SAVE,
             **self.view1.default_file_dialog_options()
@@ -60,7 +61,7 @@ class Controller(object):
                     )
             except Exception:
                 pass
-        self.view1.set_ui_input_settings(
+        self.view1.set_experiment_form(
             self.measurement_handler.settings_as_list()
         )
 
