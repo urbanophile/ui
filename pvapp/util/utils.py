@@ -81,18 +81,14 @@ def load_metadata(filename, filepath):
 
     return metadata_dict
 
+
 def load_data(full_filepath):
     """
     Loads data file and returns a numpy structured array
     """
-    data_types = {
-        'names': ("Time (s)", "Generation (V)", "PC (V)", "PL (V)"),
-        'formats': ('f4', 'f4', 'f4', 'f4')
-    }
 
     data_record = np.loadtxt(
         full_filepath,
-        #  dtype=data_types,
         skiprows=1
     )
     # TODO: better integrate this into the data object.

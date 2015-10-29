@@ -1,10 +1,12 @@
 import numpy as np
 import logging
+import time
 
 from collections import deque
 
 from hardware.daq import WaveformThread
 from models.LightPulse import LightPulse
+from util.utils import save_data
 
 
 class MeasurementHandler(object):
@@ -33,7 +35,7 @@ class MeasurementHandler(object):
         return daq_io_thread.Read_Data, daq_io_thread.time
 
     def add_to_queue(self, waveform_array, metadata):
-        print("Channel name")
+        print("add_to_queue")
         daq_io_thread = WaveformThread(
             waveform=waveform_array,
             Channel=metadata.channel_name,
@@ -44,6 +46,9 @@ class MeasurementHandler(object):
             output_sample_rate=metadata.output_sample_rate
         )
         self._queue.append((daq_io_thread, metadata))
+
+    def clear_queue(self, waveform_array, metadata):
+        self._queue = deque()
 
     def single_measurement(self):
         thread_time = None
@@ -79,7 +84,7 @@ class MeasurementHandler(object):
         data_set = np.vstack((thread_time, data_set.T)).T
         return data_set
 
-    def series_measurement(self):
+    def series_measurement(self, data_dir, wafer_name):
         dataset_list = []
         total_measurements = 0
 
@@ -87,6 +92,9 @@ class MeasurementHandler(object):
             single_dataset = self.single_measurement()
             dataset_list.append(single_dataset)
             total_measurements = total_measurements + 1
+            ts = int(time.time())
+            dataset_name = str(total_measurements) + wafer_name + str(ts)
+            save_data(single_dataset, dataset_name, data_dir)
             self._logger.info(
                 'Measurement #{0} complete'.format(total_measurements)
             )

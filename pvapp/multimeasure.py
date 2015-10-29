@@ -108,26 +108,47 @@ class Controller(object):
                 )
             self.wafer_settings = settings["wafer_settings"]
             self.temperature_settings = settings["temp_settings"]
-            print("success")
 
-        self.view1.set_wafer_form(
-            self.wafer_settings.as_dict()
-        )
-        self.view1.set_temperature_form(
-            self.temperature_settings.as_dict()
-        )
-        self.view1.disable_all_settings_inputs()
-        self.view1.show_info_modal(
-            "{0} experiment settings uploaded successfully!".format(
-                len(self.measurement_handler._queue)
+            self.view1.set_wafer_form(
+                self.wafer_settings.as_dict()
             )
-        )
+            self.view1.set_temperature_form(
+                self.temperature_settings.as_dict()
+            )
+            self.view1.disable_all_settings_inputs()
+            self.view1.show_info_modal(
+                "{0} experiment settings uploaded successfully!".format(
+                    len(self.measurement_handler._queue)
+                )
+            )
+            self.uploaded = True
+            print("success")
 
     def display(self, event):
         pass
 
     def perform_measurement(self, event):
-        pass
+        if not self.uploaded:
+            config_dict = {}
+            config_dict["temperature_settings"] = (
+                self.view1.get_temperature_form()
+            )
+            config_dict["wafer_settings"] = self.view1.get_wafer_form()
+            config_dict["experiment_settings"] = (
+                self.view1.get_experiment_form()
+            )
+            settings = self._parse_config(config_dict)
+            for setting in settings["experiment_settings"]:
+                print("Setting: ", setting)
+                self.measurement_handler.add_to_queue(
+                    LightPulse(setting).create_waveform(),
+                    setting
+                )
+            self.wafer_settings = settings["wafer_settings"]
+            self.temperature_settings = settings["temp_settings"]
+
+        self.measurement_handler.series_measurement(self.data_dir)
+        print("success")
 
     def calibrate_pc(self, event):
         self.view1.show_calibration_modal()
