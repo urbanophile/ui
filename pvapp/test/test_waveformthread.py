@@ -1,6 +1,7 @@
 import unittest
 from mock import patch
-from hardware.daq import LightPulse, WaveformThread
+from hardware.daq import WaveformThread
+from models.LightPulse import LightPulse
 from models.ExperimentSettings import ExperimentSettings
 import numpy as np
 

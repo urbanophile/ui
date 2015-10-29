@@ -1,11 +1,12 @@
 import wx
 
 from gui.view1 import View1
+from hardware.MeasurementHandler import MeasurementHandler
 
 from models.ExperimentSettings import ExperimentSettings
+from models.LightPulse import LightPulse
+
 from util.utils import load_metadata, save_metadata
-from hardware.daq import LightPulse
-from hardware.MeasurementHandler import MeasurementHandler
 
 
 class Controller(object):

@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from hardware.daq import LightPulse
+from models.LightPulse import LightPulse
 from models.ExperimentSettings import ExperimentSettings
 
 
@@ -34,7 +34,6 @@ class LightPulseTest(unittest.TestCase):
             np.zeros(final_offset),
             pulse_array[-final_offset:]
         )
-
 
         self.assertEqual(
             len(pulse_array[initial_offset:-final_offset]),

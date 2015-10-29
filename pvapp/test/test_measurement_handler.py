@@ -3,7 +3,7 @@ import unittest
 from mock import patch
 import numpy as np
 
-from hardware.daq import LightPulse
+from models.LightPulse import LightPulse
 from hardware.MeasurementHandler import MeasurementHandler
 from models.ExperimentSettings import ExperimentSettings
 

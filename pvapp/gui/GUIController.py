@@ -10,13 +10,13 @@ from util.Constants import (
     WAVEFORMS,
     OUTPUTS
 )
-from hardware import daq
 from hardware.MeasurementHandler import MeasurementHandler
 from Canvas import CanvasPanel
 from DataPanel import DataPanel
 from Validator import NumRangeValidator
 from models.ExperimentData import ExperimentData
 from models.ExperimentSettings import ExperimentSettings
+from models.LightPulse import LightPulse
 
 from FrameSkeleton import FrameSkeleton  # import the newly created GUI file
 from wx.lib.pubsub import pub
@@ -103,7 +103,6 @@ class PlaceholderController(object):
         pub.subscribe(self.listener, 'data')
         pub.subscribe(self.listener, 'update')
 
-
     def listener(self, message=pub.AUTO_TOPIC):
         print("message heard: {0}".format(message))
         # self.view.onStatusUpdate(str(message))
@@ -130,7 +129,7 @@ class PlaceholderController(object):
         null_metadata.waveform = "NullWave"
         null_metadata.averaging = 1
 
-        null_pulse = daq.LightPulse(null_metadata)
+        null_pulse = LightPulse(null_metadata)
 
         # Using that instance we then run the lights,
         # and measure the outputs
@@ -146,10 +145,6 @@ class PlaceholderController(object):
         # to be updated on the fly.
 
         pub.sendMessage('calibration.pc')
-
-
-
-
 
 
 # hybrid view/controller
@@ -179,7 +174,7 @@ class GUIController(FrameSkeleton):
 
         self.Data = ExperimentData(metadata=self.metadata)
 
-        self.light_pulse = daq.LightPulse(self.metadata)
+        self.light_pulse = LightPulse(self.metadata)
 
         # setup file data
         self.dirname = os.getcwd()
