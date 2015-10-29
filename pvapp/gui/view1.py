@@ -210,6 +210,13 @@ class View1(IncrementalApp):
         for row in self.input_rows:
             self._disable_row(row)
 
+    def show_calibration_modal(self):
+        msg_text = (
+            "Please remove sample from measurement area\n"
+            "Only one PC calibration is necessary per experimental session"
+        )
+        wx.MessageBox(msg_text, 'Info', wx.OK | wx.ICON_INFORMATION)
+
     def _bind_checkbox_disable(self):
         for row in self.input_rows:
             row[0].Bind(

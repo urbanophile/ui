@@ -5984,7 +5984,7 @@
                                                     <property name="label">Calibrate PC</property>
                                                     <property name="maximum_size"></property>
                                                     <property name="minimum_size"></property>
-                                                    <property name="name">m_button10</property>
+                                                    <property name="name">m_calibratePC</property>
                                                     <property name="permission">protected</property>
                                                     <property name="pos"></property>
                                                     <property name="size"></property>

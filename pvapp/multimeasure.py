@@ -5,6 +5,7 @@ from hardware.MeasurementHandler import MeasurementHandler
 
 from models.ExperimentSettings import ExperimentSettings
 from models.LightPulse import LightPulse
+from models.PCCalibrationData import PCCalibrationData
 
 from util.utils import load_metadata, save_metadata
 
@@ -19,7 +20,11 @@ class Controller(object):
         self._set_event_bindings()
         self.view1.Show()
 
+        # the hardware interface
         self.measurement_handler = MeasurementHandler()
+
+        # data sets
+        self.pc_calibration_data = PCCalibrationData()
 
     def data_output_dir(self, event):
 
@@ -92,6 +97,18 @@ class Controller(object):
     def perform_measurement(self, event):
         pass
 
+    def calibrate_pc(self, event):
+        self.view1.show_calibration_modal()
+
+        null_metadata = ExperimentSettings()
+        null_metadata.waveform = "NullWave"
+
+        pc_data = self.measurement_handler.pc_calibration_measurement(
+            null_metadata
+        )
+
+        self.pc_calibration.update_data(pc_data)
+
     def _set_event_bindings(self):
 
         self.view1.m_dataOutputDir.Bind(wx.EVT_BUTTON, self.data_output_dir)
@@ -101,6 +118,8 @@ class Controller(object):
         self.view1.m_display.Bind(wx.EVT_BUTTON, self.display)
         self.view1.m_performMeasurement.Bind(wx.EVT_BUTTON,
                                              self.perform_measurement)
+        self.view1.m_calibratePC.Bind(wx.EVT_BUTTON,
+                                      self.calibrate_pc)
 
     def _parse_config(self, config):
         measurement_list = []

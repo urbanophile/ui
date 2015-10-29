@@ -1,7 +1,10 @@
 import numpy as np
 import logging
-from hardware.daq import WaveformThread
+
 from collections import deque
+
+from hardware.daq import WaveformThread
+from models.LightPulse import LightPulse
 
 
 class MeasurementHandler(object):
@@ -92,4 +95,13 @@ class MeasurementHandler(object):
 
         return dataset_list
 
+    def pc_calibration_measurement(self, calibration_settings):
 
+        null_pulse = LightPulse(calibration_settings)
+
+        self.add_to_queue(
+            null_pulse.complete_waveform,
+            calibration_settings
+        )
+
+        return self.single_measurement()
