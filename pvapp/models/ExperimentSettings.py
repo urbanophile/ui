@@ -101,32 +101,20 @@ class ExperimentSettings(object):
         else:
             self._sample_rate = s_rate
 
-    def get_settings_as_dict(self):
-        meta_data = {
-            'channel': self.channel,
-            'averaging': self.averaging,
-            'measurement_binning': self.binning,
-            'threshold_mA': self.threshold,
-            'inverted_channels': self.inverted_channels,
-
-            'sample_rate': self.sample_rate,
-            'output_sample_rate': self.output_sample_rate,
-
-            "input_voltage_range": self.input_voltage_range,
-            "output_voltage_range": self.output_voltage_range,
+    def as_dict(self):
+        return {
             "waveform": self.waveform,
-            "amplitude": self.amplitude,
+            "duration": self.duration,
+            "amplitude": self._amplitude,
 
             "offset_before": self.offset_before,
             "offset_after": self.offset_after,
-            "duration": self.duration,
-            "voltage_threshold": self.voltage_threshold,
-            "channel_name": self.channel_name,
+            "sample_rate": self.sample_rate,
+            "channel": self.channel,
 
-            "pc_calibration_mean": self.pc_calibration.calibration_mean,
-            "pc_calibration_std": self.pc_calibration.calibration_std
+            "binning": self.binning,
+            "averaging": self.averaging
         }
-        return meta_data
 
     def get_total_time(self):
         return sum([self.offset_before / 1000, self.offset_after / 1000,
