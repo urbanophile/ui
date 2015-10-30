@@ -6,10 +6,10 @@ class Wafer(object):
         """
             id: identifier for wafer
             thickness: thickness of the wafer (in mm)
-            codoped: unclear what this means
+            codoped: boron and phosphorus present in wafer
             na: acceptor concentration
             nd: donor concentration
-            diffused: unclear what this means
+            diffused: has N or P type layer
             num_sides: Number of sides on which it's diffused
         """
         self.id = wafer_id

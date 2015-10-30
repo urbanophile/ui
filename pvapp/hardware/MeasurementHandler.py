@@ -47,7 +47,7 @@ class MeasurementHandler(object):
         )
         self._queue.append((daq_io_thread, metadata))
 
-    def clear_queue(self, waveform_array, metadata):
+    def clear_queue(self):
         self._queue = deque()
 
     def single_measurement(self):

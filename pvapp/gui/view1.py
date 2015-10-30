@@ -33,6 +33,7 @@ class View1(IncrementalApp):
             "None",
             "Self-consistent",
             "Nan's method",
+            "Match PL to PC",
             "Other"
         ]
         self._yes_no_labels = [
@@ -349,5 +350,16 @@ class View1(IncrementalApp):
         path_parameters = None, None
         if dialog.ShowModal() == wx.ID_OK:
             path_parameters = dialog.GetFilename(), dialog.GetDirectory()
+        dialog.Destroy()
+        return path_parameters
+
+    def ask_user_for_dir(self, **dialog_options):
+        dialog = wx.DirDialog(self, **dict(
+            message="Choose a directory",
+            defaultPath=self.dirname,
+        ))
+        path_parameters = None, None
+        if dialog.ShowModal() == wx.ID_OK:
+            path_parameters = dialog.GetPath()
         dialog.Destroy()
         return path_parameters

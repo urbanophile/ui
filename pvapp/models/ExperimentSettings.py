@@ -111,7 +111,8 @@ class ExperimentSettings(object):
             "offset_before": self.offset_before,
             "offset_after": self.offset_after,
             "sample_rate": self.sample_rate,
-            "channel": self.channel,
+            # ensures dict is passed to view in comprehensible format
+            "channel": OUTPUTS.index(self.channel),
 
             "binning": self.binning,
             "averaging": self.averaging
