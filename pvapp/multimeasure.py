@@ -52,6 +52,9 @@ class Controller(object):
 
     def load_settings(self, event):
         print("load_settings")
+
+        self.view1.clear_experiment_form()
+
         self.measurement_handler.clear_queue()
         file_dir, file_name = self.view1.askUserForFilename(
             style=wx.OPEN,
@@ -72,6 +75,7 @@ class Controller(object):
         self.view1.set_experiment_form(
             self.measurement_handler.as_list()
         )
+        print(self.measurement_handler.as_list())
 
         self.view1.set_temperature_form(
             self.temperature_settings.as_dict()

@@ -231,6 +231,17 @@ class View1(IncrementalApp):
                 except Exception as e:
                     pass
 
+    def clear_experiment_form(self):
+        for row_num in range(self.NUM_ROWS):
+            for element in self._experiment_form[row_num]:
+                try:
+                    if isinstance(element.widget, wx.Choice):
+                        element.widget.SetSelection(0)
+                    else:
+                        element.widget.SetValue("")
+                except Exception as e:
+                    pass
+
     def disable_all_settings_inputs(self):
         for row in self.input_rows:
             self._disable_row(row)
