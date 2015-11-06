@@ -144,8 +144,11 @@ class WaveformThread(threading.Thread):
         # BUG: this doesn't copy the waveform exactly
         # several trailing numbers are truncated.
         assert self.periodLength
+        print("Len periodLength: ", self.periodLength)
+        print("len waveform.shape: ", waveform.shape)
         for i in range(self.periodLength - 1):
             self.Write_data[i] = waveform[i]
+        # self.Write_data = np.copy(waveform)
 
         # Note: this ensures that the DAQ the LED is not on after the last
         # part of the waveform has been played.

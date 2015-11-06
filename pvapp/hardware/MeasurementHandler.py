@@ -88,12 +88,16 @@ class MeasurementHandler(object):
         dataset_list = []
         total_measurements = 0
 
-        for element in self._queue:
+        for element in list(self._queue):
             single_dataset = self.single_measurement()
             dataset_list.append(single_dataset)
             total_measurements = total_measurements + 1
             ts = int(time.time())
             dataset_name = str(total_measurements) + wafer_name + str(ts)
+            print("single_dataset: ", single_dataset)
+            print("dataset_name: ", dataset_name)
+            print("data_dir: ", data_dir)
+
             save_data(single_dataset, dataset_name, data_dir)
             self._logger.info(
                 'Measurement #{0} complete'.format(total_measurements)

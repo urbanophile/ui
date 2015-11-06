@@ -61,7 +61,7 @@ class View1(IncrementalApp):
         for row_index in xrange(self.NUM_ROWS):
             self._experiment_form.append([
                 FormElement(None, "waveform", "str"),
-                FormElement(None, "duration", "int"),
+                FormElement(None, "duration", "float"),
                 FormElement(None, "amplitude", "float"),
                 FormElement(None, "offset_before", "int"),
                 FormElement(None, "offset_after", "int"),
@@ -88,7 +88,7 @@ class View1(IncrementalApp):
         ]
 
         # setup flexible grid sizer for form construction
-        self.fgSizerAuto = wx.FlexGridSizer(5, 10, 0, 0)
+        self.fgSizerAuto = wx.FlexGridSizer(self.NUM_ROWS + 1, 10, 0, 0)
         self.fgSizerAuto.SetFlexibleDirection(wx.BOTH)
         self.fgSizerAuto.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_SPECIFIED)
 
