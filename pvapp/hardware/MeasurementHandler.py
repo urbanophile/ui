@@ -51,6 +51,7 @@ class MeasurementHandler(object):
         self._queue = deque()
 
     def single_measurement(self):
+        print TESTING
         thread_time = None
         data_set = []
 
