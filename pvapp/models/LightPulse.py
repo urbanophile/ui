@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import signal
-from util.Constants import WAVEFORMS
 
 
 class LightPulse(object):

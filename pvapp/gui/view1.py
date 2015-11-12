@@ -67,7 +67,7 @@ class View1(IncrementalApp):
         self.input_rows = []
         column_titles_str = [
             u"", u"Waveform", u"Period", u"Amplitude", u"Offset1",
-            u"Offset2", u"Sample Rate", u"LED state", u"Filter", u"Binning"
+            u"Offset2", u"Sample Rate", u"LED state", u"Binning", u"Averaging"
         ]
 
         self._experiment_form = []

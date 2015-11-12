@@ -111,13 +111,6 @@ class WaveformThread(threading.Thread):
         # part of the waveform has been played.
         self.Write_data[int(self.periodLength) - 1] = 0
 
-        # functions to configure the DAQ through the API
-        # TODO: configure this so app doesn't crash when
-        # self.setup()
-
-    def setup(self):
-        self.Setup_Write()
-        self.Setup_Read(self.Time, self.input_sample_rate)
 
     def Setup_Write(self):
         print('Waveform: Setup_Write')
@@ -240,6 +233,9 @@ class WaveformThread(threading.Thread):
             )
 
     def run(self):
+        self.Setup_Write()
+        self.Setup_Read(self.Time, self.input_sample_rate)
+
         # Transitions the task from the committed state to the running state,
         # which begins measurement or generation.
         self.CHK(nidaq.DAQmxStartTask(self.taskHandle_Write))

@@ -2,6 +2,7 @@ import wx
 import os
 
 from gui.view1 import View1
+from gui.PlotModal import PlotModal
 from hardware.MeasurementHandler import MeasurementHandler
 
 from models.ExperimentSettings import ExperimentSettings
@@ -24,6 +25,7 @@ class Controller(object):
         """
         super(Controller, self).__init__()
         self.view1 = view1
+        self.app = app
 
         # make directory for storing data files
         self.app_dir = os.getcwd()
@@ -149,7 +151,24 @@ class Controller(object):
             self.uploaded = True
 
     def display(self, event):
-        pass
+        """
+        Plot waveforms in modal
+        """
+        self.PlotModal = PlotModal(self.app)
+        self.PlotModal.Show()
+
+        waveform_list = []
+        settings_dict = {}
+
+        try:
+            settings_dict["experiment_settings"] = self.view1.get_experiment_form()
+            experiment_settings = self._parse_experiment_settings(settings_dict)
+            for setting in experiment_settings:
+                waveform_list.append(LightPulse(setting).create_waveform())
+
+            self.PlotModal.plot_data(waveform_list)
+        except PVInputError as e:
+            self.view1.show_error_modal(str(e))
 
     def perform_measurement(self, event):
         """
@@ -239,12 +258,7 @@ class Controller(object):
             wx.EVT_BUTTON, self.show_calibration_const
         )
 
-    def _parse_config(self, config):
-        """
-        Takes a dictionary of settings and constructs appropriate objects
-        """
-
-        settings = {}
+    def _parse_experiment_settings(self, config):
         measurement_list = []
         experiments_list = config["experiment_settings"]
         for item in experiments_list:
@@ -265,7 +279,17 @@ class Controller(object):
             except KeyError as e:
                 raise("Missing value in Experiment Settings: {0}".format(e))
 
-        settings["experiment_settings"] = measurement_list
+        return measurement_list
+
+    def _parse_config(self, config):
+        """
+        Takes a dictionary of settings and constructs appropriate objects
+        """
+
+        settings = {}
+        settings["experiment_settings"] = self._parse_experiment_settings(
+            config
+        )
 
         try:
             settings["temp_settings"] = TemperatureSettings(
