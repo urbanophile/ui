@@ -54,6 +54,11 @@ class View1(IncrementalApp):
             "1 side",
             "2 sides"
         ]
+
+        self._temperature_scale_labels = [
+            "1 side",
+            "2 sides"
+        ]
         self._set_hardware_dropdowns()
 
         # experiment settings layout
@@ -90,7 +95,6 @@ class View1(IncrementalApp):
             widget_list=[
                 FormElement(self.m_waferID, "wafer_id", "str"),
                 FormElement(self.m_waferThickness, "wafer_thickness", "float"),
-                FormElement(self.m_waferCodoped, "wafer_codoped", "bool"),
                 FormElement(self.m_waferNA, "wafer_na", "float"),
                 FormElement(self.m_waferND, "wafer_nd", "float"),
                 FormElement(self.m_waferDiffused, "wafer_diffused", "bool"),
@@ -127,10 +131,22 @@ class View1(IncrementalApp):
 
         self.Layout()
 
+        self.set_display_PL()
+
         self._set_ui_validators()
-        self._bind_checkbox_disable()
+        self._bind_events()
 
         # self._test_setters()
+
+    def _bind_events(self):
+        self.m_transitionPage.Bind(wx.EVT_BUTTON, self._transition_page)
+
+        # ensure checkboxes disable rows
+        for row in self.input_rows:
+            row[0].Bind(
+                wx.EVT_CHECKBOX,
+                self._disable_part_row
+            )
 
     def _test_setters(self):
         self.set_temperature_form({
@@ -142,7 +158,6 @@ class View1(IncrementalApp):
         self.set_wafer_form({
             "wafer_id": "wafer1",
             "wafer_thickness": 33.0,
-            "wafer_codoped": True,
             "wafer_na": 1,
             "wafer_nd": 6,
             "wafer_diffused": True,
@@ -173,6 +188,9 @@ class View1(IncrementalApp):
                 "averaging": 5,
             }
         ])
+
+    ###########################
+    # Public Methods
 
     def get_form(self, form, allow_incomplete):
         typed_inputs = {}
@@ -239,6 +257,10 @@ class View1(IncrementalApp):
                     print("Experiment Error: ", e)
                     pass
 
+    def set_display_PL(self):
+        self.m_displayPL.Disable()
+        self.m_displayPL.SetValue(u"None")
+
     def clear_experiment_form(self):
         for row_num in range(self.NUM_ROWS):
             for element in self._experiment_form[row_num].widget_list:
@@ -285,12 +307,38 @@ class View1(IncrementalApp):
         dialog.Destroy()
         return path_parameters
 
-    def _bind_checkbox_disable(self):
-        for row in self.input_rows:
-            row[0].Bind(
-                wx.EVT_CHECKBOX,
-                self._disable_part_row
+    ###########################
+    # Initialise UI
+
+    def _set_ui_validators(self):
+        for element in self._temperature_form.widget_list:
+            element.widget.SetValidator(
+                NumRangeValidator(numeric_type=element.input_type)
             )
+
+        for element in self._wafer_form.widget_list:
+            if element.input_type in ["int", "float"]:
+                element.widget.SetValidator(
+                    NumRangeValidator(numeric_type=element.input_type)
+                )
+
+        for row in self._experiment_form:
+            for element in row.widget_list:
+                if element.input_type in ["int", "float"]:
+                    element.widget.SetValidator(
+                        NumRangeValidator(numeric_type=element.input_type)
+                    )
+
+    def _set_hardware_dropdowns(self):
+        self.m_plCalibrationMethod.SetItems(self._pl_calibration_labels)
+        self.m_waferDiffused.SetItems(self._yes_no_labels)
+        self.m_waferNumSides.SetItems(self._num_sides_labels)
+        self.m_waferNumSides.SetItems(self._temperature_scale_labels)
+
+    ###########################
+    # Manipulate UI
+    def _transition_page(self, event):
+        self.m_notebook1.SetSelection(1)
 
     def _disable_part_row(self, event):
         sender = event.GetEventObject()
@@ -315,11 +363,8 @@ class View1(IncrementalApp):
             if index >= start_element:
                 element.Enable()
 
-    def _set_hardware_dropdowns(self):
-        self.m_plCalibrationMethod.SetItems(self._pl_calibration_labels)
-        self.m_waferCodoped.SetItems(self._yes_no_labels)
-        self.m_waferDiffused.SetItems(self._yes_no_labels)
-        self.m_waferNumSides.SetItems(self._num_sides_labels)
+    ###########################
+    # Form construction methods
 
     def _add_row(self, number):
         row_elements = []
@@ -367,22 +412,3 @@ class View1(IncrementalApp):
         dropdown.SetSelection(0)
         self.fgSizerAuto.Add(dropdown, 0, wx.ALL, 5)
         return dropdown
-
-    def _set_ui_validators(self):
-        for element in self._temperature_form.widget_list:
-            element.widget.SetValidator(
-                NumRangeValidator(numeric_type=element.input_type)
-            )
-
-        for element in self._wafer_form.widget_list:
-            if element.input_type in ["int", "float"]:
-                element.widget.SetValidator(
-                    NumRangeValidator(numeric_type=element.input_type)
-                )
-
-        for row in self._experiment_form:
-            for element in row.widget_list:
-                if element.input_type in ["int", "float"]:
-                    element.widget.SetValidator(
-                        NumRangeValidator(numeric_type=element.input_type)
-                    )

@@ -22,7 +22,7 @@ class TemperatureSettings(object):
 
         if start_temp == end_temp and step_temp != 0:
             raise PVInputError(
-                "Can't take that many steps in that much space."
+                "Can't take that many steps in that between start and end."
             )
 
         self.start_temp = start_temp
