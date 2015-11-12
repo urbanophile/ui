@@ -86,7 +86,6 @@ class Controller(object):
         )
         self.measurement_handler.clear_queue()
 
-
     def upload(self, event):
         self.measurement_handler.clear_queue()
         file_dir, file_name = self.view1.askUserForFilename(
@@ -119,9 +118,10 @@ class Controller(object):
         pass
 
     def perform_measurement(self, event):
-        # first save wafer settings to disk
 
+        # try:
         if not self.uploaded:
+            # try to retrieve settings from the various forms
             config_dict = {}
             config_dict["temperature_settings"] = (
                 self.view1.get_temperature_form()
@@ -138,7 +138,9 @@ class Controller(object):
                 )
             self.wafer_settings = settings["wafer_settings"]
             self.temperature_settings = settings["temp_settings"]
-
+        # except Exception as e:
+        #     print(type(e), str(e))
+        #     self.view1.show_error_modal(str(e))
 
         if self.data_dir is not None:
             save_metadata(

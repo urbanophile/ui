@@ -38,49 +38,6 @@ DAQmx_Val_Cfg_Default = int32(-1)
 DAQmax_Channels_Number = len(CHANNELS)
 
 
-# ### nidaq.DAQmxCreateTask
-# creates a task, which must be later cleared
-# returns a taskHandle obje
-
-# ### nidaq.DAQmxCreateAIVoltageChan
-# creates an analog input voltage channel
-
-# ### nidaq.DAQmxCreateAOVoltageChan
-# Creates channel(s) to generate voltage and adds the channel(s) to
-# the task you specify with taskHandle.
-
-# ### nidaq.DAQmxStartTask
-# Transitions the task from the committed state to the running state,
-# which begins measurement or generation.
-
-# ### nidaq.DAQmxStopTask
-# Stops the task and returns it to the state it was in before you
-# called DAQmxStartTask
-
-# ### nidaq.DAQmxClearTask
-# clears the specified task. If the task is currently running, the
-# function first stops thetask and then releases all of its resources.
-
-# ### nidaq.DAQmxReadAnalogF64
-# reads samples from the specified acquisition task.
-
-# ### nidaq.DAQmxWriteAnalogF64
-# The NI-DAQmx Write Function moves samples from the
-# Application Development Environment (ADE) Memory to the PC Buffer in RAM.
-
-# ### nidaq.DAQmxGetErrorString
-# Converts the error number returned
-# by an NI-DAQmx function into a meaningful error message.
-
-# ### nidaq.DAQmxCfgSampClkTiming
-# Your device uses a sample clock to control the rate at which samples
-# are acquired and generated. This sample clock sets the time interval
-#  between samples. Each tick of this clock initiates the acquisition
-# or generation of one sample per channel.
-# This function sets the source of the sample clock, the rate of the
-# sample clock, and the number of samples to acquire or generate
-
-
 class WaveformThread(threading.Thread):
     """
     This class performs the necessary initialization of the DAQ hardware and
@@ -169,12 +126,17 @@ class WaveformThread(threading.Thread):
 
         # setup the DAQ hardware
         print('DAQmxCreateTask')
+
+        # creates a task, which must be later cleared
+        # returns a taskHandle object
         self.CHK(nidaq.DAQmxCreateTask(
             "",
             ctypes.byref(self.taskHandle_Write)
         ))
 
         print('DAQmxCreateAOVoltageChan')
+        # Creates channel(s) to generate voltage and adds the channel(s) to
+        # the task you specify with taskHandle.
         self.CHK(nidaq.DAQmxCreateAOVoltageChan(
             self.taskHandle_Write,
             self.DEVICE_ID + self.Channel,
@@ -189,6 +151,12 @@ class WaveformThread(threading.Thread):
 
         print("Sample rate :", self.sampleRate)
         print('DAQmxCfgSampClkTiming')
+        # Your device uses a sample clock to control the rate at which samples
+        # are acquired and generated. This sample clock sets the time interval
+        #  between samples. Each tick of this clock initiates the acquisition
+        # or generation of one sample per channel.
+        # This function sets the source of the sample clock, the rate of the
+        # sample clock, and the number of samples to acquire or generate
         self.CHK(nidaq.DAQmxCfgSampClkTiming(
             self.taskHandle_Write,
             "/" + self.DEVICE_ID + "ai/SampleClock",
@@ -199,6 +167,9 @@ class WaveformThread(threading.Thread):
         ))
 
         print('DAQmxWriteAnalogF64')
+        # The NI-DAQmx Write Function moves samples from the
+        # Application Development Environment (ADE) Memory to the PC Buffer
+        # in RAM.
         self.CHK(nidaq.DAQmxWriteAnalogF64(
             self.taskHandle_Write,  # TaskHandel
             int32(self.periodLength),  # num of samples per channel
@@ -219,6 +190,7 @@ class WaveformThread(threading.Thread):
         self.CHK(nidaq.DAQmxCreateTask("", ctypes.byref(self.taskHandle_Read)))
 
         print('DAQmxCreateAIVoltageChan')
+        # creates an analog input voltage channel
         self.CHK(nidaq.DAQmxCreateAIVoltageChan(
             self.taskHandle_Read,
             self.DEVICE_ID + "ai0:2",
@@ -251,6 +223,8 @@ class WaveformThread(threading.Thread):
         if err < 0:
             buf_size = 100
             buf = ctypes.create_string_buffer('\000' * buf_size)
+            # Converts the error number returned
+            # by an NI-DAQmx function into a meaningful error message.
             nidaq.DAQmxGetErrorString(err, ctypes.byref(buf), buf_size)
             raise RuntimeError(
                 'nidaq call failed with error %d: %s' % (err, repr(buf.value))
@@ -258,15 +232,20 @@ class WaveformThread(threading.Thread):
         if err > 0:
             buf_size = 100
             buf = ctypes.create_string_buffer('\000' * buf_size)
+            # Converts the error number returned
+            # by an NI-DAQmx function into a meaningful error message.
             nidaq.DAQmxGetErrorString(err, ctypes.byref(buf), buf_size)
             raise RuntimeError(
                 'nidaq generated warning %d: %s' % (err, repr(buf.value))
             )
 
     def run(self):
+        # Transitions the task from the committed state to the running state,
+        # which begins measurement or generation.
         self.CHK(nidaq.DAQmxStartTask(self.taskHandle_Write))
         self.CHK(nidaq.DAQmxStartTask(self.taskHandle_Read))
 
+        # reads samples from the specified acquisition task.
         self.CHK(nidaq.DAQmxReadAnalogF64(
             # Task handle
             self.taskHandle_Read,
@@ -293,14 +272,26 @@ class WaveformThread(threading.Thread):
     def stop(self):
         self.running = False
         if self.taskHandle_Write.value != 0:
+            # Stops the task and returns it to the state it was in before you
+            # called DAQmxStartTask
             nidaq.DAQmxStopTask(self.taskHandle_Write)
+            # clears the specified task. If the task is currently running, the
+            # function first stops thetask and then releases all of its
+            # resources.
             nidaq.DAQmxClearTask(self.taskHandle_Write)
 
         if self.taskHandle_Read.value != 0:
+            # Stops the task and returns it to the state it was in before you
+            # called DAQmxStartTask
             nidaq.DAQmxStopTask(self.taskHandle_Read)
+            # clears the specified task. If the task is currently running, the
+            # function first stops thetask and then releases all of its
+            # resources.
             nidaq.DAQmxClearTask(self.taskHandle_Read)
         # show()
 
     def clear(self):
+        # clears the specified task. If the task is currently running, the
+        # function first stops thetask and then releases all of its resources.
         nidaq.DAQmxClearTask(self.taskHandle_Write)
         nidaq.DAQmxClearTask(self.taskHandle_Read)

@@ -13,6 +13,14 @@ known_types = {
 }
 
 
+class Form(object):
+    """A collection of related input widgets"""
+
+    def __init__(self, name, widget_list):
+        self.name = name
+        self.widget_list = widget_list
+
+
 class FormElement(object):
     """docstring for FormElement"""
     def __init__(self, widget, widget_id, input_type):
@@ -59,33 +67,44 @@ class View1(IncrementalApp):
         self.NUM_ROWS = 4
 
         for row_index in xrange(self.NUM_ROWS):
-            self._experiment_form.append([
-                FormElement(None, "waveform", "str"),
-                FormElement(None, "duration", "float"),
-                FormElement(None, "amplitude", "float"),
-                FormElement(None, "offset_before", "int"),
-                FormElement(None, "offset_after", "int"),
-                FormElement(None, "sample_rate", "float"),
-                FormElement(None, "channel", "str"),
-                FormElement(None, "binning", "int"),
-                FormElement(None, "averaging", "int")
-            ])
+            self._experiment_form.append(
+                Form(
+                    name="Experiment " + str(row_index),
+                    widget_list=[
+                        FormElement(None, "waveform", "str"),
+                        FormElement(None, "duration", "float"),
+                        FormElement(None, "amplitude", "float"),
+                        FormElement(None, "offset_before", "int"),
+                        FormElement(None, "offset_after", "int"),
+                        FormElement(None, "sample_rate", "float"),
+                        FormElement(None, "channel", "str"),
+                        FormElement(None, "binning", "int"),
+                        FormElement(None, "averaging", "int")
+                    ]
+                )
+            )
 
-        self._wafer_form = [
-            FormElement(self.m_waferID, "wafer_id", "str"),
-            FormElement(self.m_waferThickness, "wafer_thickness", "float"),
-            FormElement(self.m_waferCodoped, "wafer_codoped", "bool"),
-            FormElement(self.m_waferNA, "wafer_na", "float"),
-            FormElement(self.m_waferND, "wafer_nd", "float"),
-            FormElement(self.m_waferDiffused, "wafer_diffused", "bool"),
-            FormElement(self.m_waferNumSides, "wafer_num_sides", "str")
-        ]
+        self._wafer_form = Form(
+            name="Wafer",
+            widget_list=[
+                FormElement(self.m_waferID, "wafer_id", "str"),
+                FormElement(self.m_waferThickness, "wafer_thickness", "float"),
+                FormElement(self.m_waferCodoped, "wafer_codoped", "bool"),
+                FormElement(self.m_waferNA, "wafer_na", "float"),
+                FormElement(self.m_waferND, "wafer_nd", "float"),
+                FormElement(self.m_waferDiffused, "wafer_diffused", "bool"),
+                FormElement(self.m_waferNumSides, "wafer_num_sides", "str")
+            ]
+        )
 
-        self._temperature_form = [
-            FormElement(self.m_startTemp, "start_temp", "int"),
-            FormElement(self.m_endTemp, "end_temp", "int"),
-            FormElement(self.m_stepTemp, "step_temp", "int")
-        ]
+        self._temperature_form = Form(
+            name="Temperature",
+            widget_list=[
+                FormElement(self.m_startTemp, "start_temp", "int"),
+                FormElement(self.m_endTemp, "end_temp", "int"),
+                FormElement(self.m_stepTemp, "step_temp", "int")
+            ],
+        )
 
         # setup flexible grid sizer for form construction
         self.fgSizerAuto = wx.FlexGridSizer(self.NUM_ROWS + 1, 10, 0, 0)
@@ -99,7 +118,7 @@ class View1(IncrementalApp):
             self.input_rows.append(self._add_row(num + 1))
 
             for index, widget in enumerate(self.input_rows[num][1:]):
-                self._experiment_form[num][index].widget = widget
+                self._experiment_form[num].widget_list[index].widget = widget
 
         self.m_autoPanel.SetSizer(self.fgSizerAuto)
         self.m_autoPanel.Layout()
@@ -154,10 +173,11 @@ class View1(IncrementalApp):
             }
         ])
 
-    def get_temperature_form(self):
+    def get_form(self, form):
         typed_inputs = {}
 
-        for entry in self._temperature_form:
+        # try:
+        for entry in form.widget_list:
             type_func = known_types[entry.input_type]
             if isinstance(entry.widget, wx.Choice):
                 typed_inputs[entry.widget_id] = int(
@@ -168,45 +188,30 @@ class View1(IncrementalApp):
                     entry.widget.GetValue()
                 )
         return typed_inputs
+        # except Exception as e:
+        #     if entry.widget.GetSelection() == "":
+        #         raise ValueError("No value for {0} in form {1}".format(
+        #             entry.widget_id, form.name
+        #         ))
+        #     raise e
+
+    def get_temperature_form(self):
+        return self.get_form(self._temperature_form)
 
     def get_wafer_form(self):
-        typed_inputs = {}
-
-        for entry in self._wafer_form:
-            type_func = known_types[entry.input_type]
-            if isinstance(entry.widget, wx.Choice):
-                typed_inputs[entry.widget_id] = int(
-                    entry.widget.GetSelection()
-                )
-            else:
-                typed_inputs[entry.widget_id] = type_func(
-                    entry.widget.GetValue()
-                )
-        return typed_inputs
+        return self.get_form(self._wafer)
 
     def get_experiment_form(self):
         inputs = []
-        for row in self._experiment_form:
-            row_inputs = {}
-            for entry in row:
-                try:
-                    type_func = known_types[entry.input_type]
-                    if isinstance(entry.widget, wx.Choice):
-                        row_inputs[entry.widget_id] = int(
-                            entry.widget.GetSelection()
-                        )
-                    else:
-                        row_inputs[entry.widget_id] = type_func(
-                            entry.widget.GetValue()
-                        )
-                except ValueError:
-                    break
-            if len(row_inputs) >= len(self._experiment_form[0]):
-                inputs.append(row_inputs)
+        for row, experiment in enumerate(self._experiment_form):
+
+            # check if the row is enabled.
+            if self.input_rows[row] is True:
+                inputs.append(self.get_form(experiment))
         return inputs
 
     def set_wafer_form(self, wafer_settings):
-        for element in self._wafer_form:
+        for element in self._wafer_form.widget_list:
             widget = element.widget
             print("wafer settings: ", wafer_settings)
             value = wafer_settings[element.widget_id]
@@ -216,7 +221,7 @@ class View1(IncrementalApp):
                 widget.SetValue(str(value))
 
     def set_temperature_form(self, temp_settings):
-        for element in self._temperature_form:
+        for element in self._temperature_form.widget_list:
             element.widget.SetValue(str(temp_settings[element.widget_id]))
 
     def set_experiment_form(self, experiment_settings):
@@ -229,6 +234,7 @@ class View1(IncrementalApp):
                     else:
                         element.widget.SetValue(str(value))
                 except Exception as e:
+                    print(e)
                     pass
 
     def clear_experiment_form(self):
@@ -240,7 +246,7 @@ class View1(IncrementalApp):
                     else:
                         element.widget.SetValue("")
                 except Exception as e:
-                    pass
+                    print(e)
 
     def disable_all_settings_inputs(self):
         for row in self.input_rows:
@@ -255,6 +261,40 @@ class View1(IncrementalApp):
 
     def show_info_modal(self, message_text):
         wx.MessageBox(message_text, 'Info', wx.OK | wx.ICON_INFORMATION)
+
+    def show_error_modal(self, message_text):
+        wx.MessageBox(message_text, 'Error', wx.OK | wx.ICON_ERROR)
+
+    def default_file_dialog_options(self):
+        """
+        Return a dictionary with file dialog options that can be
+        used in both the save file dialog as well as in the open
+        file dialog.
+        """
+        return dict(
+            message='Choose a file',
+            defaultDir=self.dirname,
+            wildcard='*.*'
+        )
+
+    def askUserForFilename(self, **dialog_options):
+        dialog = wx.FileDialog(self, **dialog_options)
+        path_parameters = None, None
+        if dialog.ShowModal() == wx.ID_OK:
+            path_parameters = dialog.GetFilename(), dialog.GetDirectory()
+        dialog.Destroy()
+        return path_parameters
+
+    def ask_user_for_dir(self, **dialog_options):
+        dialog = wx.DirDialog(self, **dict(
+            message="Choose a directory",
+            defaultPath=self.dirname,
+        ))
+        path_parameters = None, None
+        if dialog.ShowModal() == wx.ID_OK:
+            path_parameters = dialog.GetPath()
+        dialog.Destroy()
+        return path_parameters
 
     def _bind_checkbox_disable(self):
         for row in self.input_rows:
@@ -344,33 +384,3 @@ class View1(IncrementalApp):
         self.m_endTemp.SetValidator(NumRangeValidator(numeric_type='int'))
         self.m_stepTemp.SetValidator(NumRangeValidator(numeric_type='int'))
 
-    def default_file_dialog_options(self):
-        """
-        Return a dictionary with file dialog options that can be
-        used in both the save file dialog as well as in the open
-        file dialog.
-        """
-        return dict(
-            message='Choose a file',
-            defaultDir=self.dirname,
-            wildcard='*.*'
-        )
-
-    def askUserForFilename(self, **dialog_options):
-        dialog = wx.FileDialog(self, **dialog_options)
-        path_parameters = None, None
-        if dialog.ShowModal() == wx.ID_OK:
-            path_parameters = dialog.GetFilename(), dialog.GetDirectory()
-        dialog.Destroy()
-        return path_parameters
-
-    def ask_user_for_dir(self, **dialog_options):
-        dialog = wx.DirDialog(self, **dict(
-            message="Choose a directory",
-            defaultPath=self.dirname,
-        ))
-        path_parameters = None, None
-        if dialog.ShowModal() == wx.ID_OK:
-            path_parameters = dialog.GetPath()
-        dialog.Destroy()
-        return path_parameters
