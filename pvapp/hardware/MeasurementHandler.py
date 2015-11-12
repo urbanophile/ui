@@ -47,11 +47,13 @@ class MeasurementHandler(object):
         )
         self._queue.append((daq_io_thread, metadata))
 
+    def is_queue_empty(self):
+        return True if len(self._queue) == 0 else False
+
     def clear_queue(self):
         self._queue = deque()
 
     def single_measurement(self):
-        print TESTING
         thread_time = None
         data_set = []
 

@@ -1,4 +1,5 @@
 import wx
+import os
 
 from gui.view1 import View1
 from hardware.MeasurementHandler import MeasurementHandler
@@ -10,6 +11,7 @@ from models.TemperatureSettings import TemperatureSettings
 from models.Wafer import Wafer
 
 from util.utils import load_metadata, save_metadata
+from util.Exceptions import PVInputError
 
 
 class Controller(object):
@@ -18,7 +20,15 @@ class Controller(object):
         super(Controller, self).__init__()
         self.view1 = view1
 
-        self.data_dir = None
+        # make directory for storing data files
+        self.app_dir = os.getcwd()
+        data_dir = os.path.join(self.app_dir, "data_directory")
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        print("data_dir: ", data_dir)
+        self.data_dir = data_dir
+        print("self: ", self.data_dir)
+
         self._set_event_bindings()
         self.view1.Show()
 
@@ -35,16 +45,27 @@ class Controller(object):
         self.pc_calibration_data = PCCalibrationData()
 
     def data_output_dir(self, event):
-        self.data_dir = self.view1.ask_user_for_dir()
+        print "datadir: ", self.data_dir
+        print (type(self.data_dir))
+        self.data_dir = self.view1.ask_user_for_dir(
+            message="Choose a directory",
+            defaultPath=self.data_dir,
+        )
 
     def save_settings(self, event):
         settings = {}
-        settings["temperature_settings"] = self.view1.get_temperature_form()
-        settings["experiment_settings"] = self.view1.get_experiment_form()
+        settings["temperature_settings"] = self.view1.get_temperature_form(
+            allow_incomplete=True
+        )
+        settings["experiment_settings"] = self.view1.get_experiment_form(
+            allow_incomplete=True
+        )
 
-        file_dir, file_name = self.view1.askUserForFilename(
-            style=wx.SAVE,
-            **self.view1.default_file_dialog_options()
+        file_dir, file_name = self.view1.ask_user_for_filename(
+            defaultDir=self.app_dir,
+            message='Save your file',
+            wildcard='*.*',
+            style=wx.SAVE
         )
         if file_dir is not None:
             # utils.save_data(self.Data.Data, self.data_file, self.dirname)
@@ -53,16 +74,18 @@ class Controller(object):
     def load_settings(self, event):
 
         # TODO: change so just fills form out
-        # and then reads into data structure when press perform meaurement
+        # and then reads into data structure when press perform measurement
 
         print("load_settings")
 
         self.view1.clear_experiment_form()
 
         self.measurement_handler.clear_queue()
-        file_dir, file_name = self.view1.askUserForFilename(
-            style=wx.OPEN,
-            **self.view1.default_file_dialog_options()
+        file_dir, file_name = self.view1.ask_user_for_filename(
+            defaultDir=self.app_dir,
+            message='Choose a file',
+            wildcard='*.*',
+            style=wx.OPEN
         )
         if file_dir is not None:
             # try:
@@ -75,7 +98,7 @@ class Controller(object):
                 )
             self.temperature_settings = settings["temp_settings"]
             # except Exception as e:
-            #     print("an Exception occured:{0}".format(e))
+            #     print("an Exception occured: {0}".format(e))
         self.view1.set_experiment_form(
             self.measurement_handler.as_list()
         )
@@ -88,9 +111,11 @@ class Controller(object):
 
     def upload(self, event):
         self.measurement_handler.clear_queue()
-        file_dir, file_name = self.view1.askUserForFilename(
+        file_dir, file_name = self.view1.ask_user_for_filename(
+            defaultDir=self.app_dir,
             style=wx.OPEN,
-            **self.view1.default_file_dialog_options()
+            message='Choose a file',
+            wildcard='*.*'
         )
         if file_dir is not None:
             config_dict = load_metadata(file_name, file_dir)
@@ -119,41 +144,46 @@ class Controller(object):
 
     def perform_measurement(self, event):
 
-        # try:
-        if not self.uploaded:
-            # try to retrieve settings from the various forms
-            config_dict = {}
-            config_dict["temperature_settings"] = (
-                self.view1.get_temperature_form()
-            )
-            config_dict["wafer_settings"] = self.view1.get_wafer_form()
-            config_dict["experiment_settings"] = (
-                self.view1.get_experiment_form()
-            )
-            settings = self._parse_config(config_dict)
-            for setting in settings["experiment_settings"]:
-                self.measurement_handler.add_to_queue(
-                    LightPulse(setting).create_waveform(),
-                    setting
+        try:
+
+            if not self.uploaded:
+                # try to retrieve settings from the various forms
+                config_dict = {}
+                config_dict["temperature_settings"] = (
+                    self.view1.get_temperature_form()
                 )
-            self.wafer_settings = settings["wafer_settings"]
-            self.temperature_settings = settings["temp_settings"]
-        # except Exception as e:
-        #     print(type(e), str(e))
-        #     self.view1.show_error_modal(str(e))
+                config_dict["wafer_settings"] = self.view1.get_wafer_form()
+                config_dict["experiment_settings"] = (
+                    self.view1.get_experiment_form()
+                )
+                settings = self._parse_config(config_dict)
+                for setting in settings["experiment_settings"]:
+                    self.measurement_handler.add_to_queue(
+                        LightPulse(setting).create_waveform(),
+                        setting
+                    )
+                self.wafer_settings = settings["wafer_settings"]
+                self.temperature_settings = settings["temp_settings"]
+                print("config_dict: ", config_dict)
 
-        if self.data_dir is not None:
-            save_metadata(
-                self.wafer_settings.as_dict(),
-                self.wafer_settings.id,
-                self.data_dir
+            if self.data_dir is not None:
+                save_metadata(
+                    self.wafer_settings.as_dict(),
+                    self.wafer_settings.id,
+                    self.data_dir
+                )
+
+            if self.measurement_handler.is_queue_empty():
+                raise(PVInputError("No measurements loaded."))
+
+            print("MeasurementHandler:", self.data_dir, self.wafer_settings.id)
+            self.measurement_handler.series_measurement(
+                self.data_dir,
+                self.wafer_settings.id
             )
-
-        print("MeasurementHandler :", self.data_dir, self.wafer_settings.id)
-        self.measurement_handler.series_measurement(
-            self.data_dir,
-            self.wafer_settings.id
-        )
+        except PVInputError as e:
+            print(type(e), str(e))
+            self.view1.show_error_modal(str(e))
 
     def calibrate_pc(self, event):
         self.view1.show_calibration_modal()

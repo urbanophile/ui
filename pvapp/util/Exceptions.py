@@ -1,0 +1,2 @@
+class PVInputError(Exception):
+    pass

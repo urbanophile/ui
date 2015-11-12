@@ -1,9 +1,11 @@
 import wx
-import os
+
 
 from gui.new_gui import IncrementalApp
 from gui.Validator import NumRangeValidator
+
 from util.Constants import WAVEFORMS, OUTPUTS
+from util.Exceptions import PVInputError
 
 known_types = {
     'int': int,
@@ -33,7 +35,6 @@ class View1(IncrementalApp):
     def __init__(self, parent):
         IncrementalApp.__init__(self, parent)
 
-        self.dirname = os.getcwd()
         self.data_file = None
 
         # hardware layout
@@ -173,41 +174,42 @@ class View1(IncrementalApp):
             }
         ])
 
-    def get_form(self, form):
+    def get_form(self, form, allow_incomplete):
         typed_inputs = {}
 
-        # try:
         for entry in form.widget_list:
-            type_func = known_types[entry.input_type]
-            if isinstance(entry.widget, wx.Choice):
-                typed_inputs[entry.widget_id] = int(
-                    entry.widget.GetSelection()
-                )
-            else:
-                typed_inputs[entry.widget_id] = type_func(
-                    entry.widget.GetValue()
-                )
+            try:
+                type_func = known_types[entry.input_type]
+                if isinstance(entry.widget, wx.Choice):
+                    typed_inputs[entry.widget_id] = int(
+                        entry.widget.GetSelection()
+                    )
+                else:
+                    typed_inputs[entry.widget_id] = type_func(
+                        entry.widget.GetValue()
+                    )
+            except ValueError as e:
+                print entry.widget_id, entry.widget.GetValue()
+                print("ERROR", e)
+                if not allow_incomplete and entry.widget.GetValue() == '':
+                    raise PVInputError("No value for {0} in form {1}".format(
+                        entry.widget_id, form.name
+                    ))
         return typed_inputs
-        # except Exception as e:
-        #     if entry.widget.GetSelection() == "":
-        #         raise ValueError("No value for {0} in form {1}".format(
-        #             entry.widget_id, form.name
-        #         ))
-        #     raise e
 
-    def get_temperature_form(self):
-        return self.get_form(self._temperature_form)
+    def get_temperature_form(self, allow_incomplete=False):
+        return self.get_form(self._temperature_form, allow_incomplete)
 
-    def get_wafer_form(self):
-        return self.get_form(self._wafer)
+    def get_wafer_form(self, allow_incomplete=False):
+        return self.get_form(self._wafer_form, allow_incomplete)
 
-    def get_experiment_form(self):
+    def get_experiment_form(self, allow_incomplete=False):
         inputs = []
         for row, experiment in enumerate(self._experiment_form):
 
             # check if the row is enabled.
-            if self.input_rows[row] is True:
-                inputs.append(self.get_form(experiment))
+            if self.input_rows[row][0].GetValue() is True:
+                inputs.append(self.get_form(experiment, allow_incomplete))
         return inputs
 
     def set_wafer_form(self, wafer_settings):
@@ -226,7 +228,7 @@ class View1(IncrementalApp):
 
     def set_experiment_form(self, experiment_settings):
         for row_num in range(self.NUM_ROWS):
-            for element in self._experiment_form[row_num]:
+            for element in self._experiment_form[row_num].widget_list:
                 try:
                     value = experiment_settings[row_num][element.widget_id]
                     if isinstance(element.widget, wx.Choice):
@@ -234,19 +236,19 @@ class View1(IncrementalApp):
                     else:
                         element.widget.SetValue(str(value))
                 except Exception as e:
-                    print(e)
+                    print("Experiment Error: ", e)
                     pass
 
     def clear_experiment_form(self):
         for row_num in range(self.NUM_ROWS):
-            for element in self._experiment_form[row_num]:
+            for element in self._experiment_form[row_num].widget_list:
                 try:
                     if isinstance(element.widget, wx.Choice):
                         element.widget.SetSelection(0)
                     else:
                         element.widget.SetValue("")
                 except Exception as e:
-                    print(e)
+                    print("Experiment Error: ", e)
 
     def disable_all_settings_inputs(self):
         for row in self.input_rows:
@@ -265,19 +267,8 @@ class View1(IncrementalApp):
     def show_error_modal(self, message_text):
         wx.MessageBox(message_text, 'Error', wx.OK | wx.ICON_ERROR)
 
-    def default_file_dialog_options(self):
-        """
-        Return a dictionary with file dialog options that can be
-        used in both the save file dialog as well as in the open
-        file dialog.
-        """
-        return dict(
-            message='Choose a file',
-            defaultDir=self.dirname,
-            wildcard='*.*'
-        )
-
-    def askUserForFilename(self, **dialog_options):
+    def ask_user_for_filename(self, **dialog_options):
+        print(dialog_options)
         dialog = wx.FileDialog(self, **dialog_options)
         path_parameters = None, None
         if dialog.ShowModal() == wx.ID_OK:
@@ -286,10 +277,8 @@ class View1(IncrementalApp):
         return path_parameters
 
     def ask_user_for_dir(self, **dialog_options):
-        dialog = wx.DirDialog(self, **dict(
-            message="Choose a directory",
-            defaultPath=self.dirname,
-        ))
+        dialog = wx.DirDialog(self, **dialog_options)
+
         path_parameters = None, None
         if dialog.ShowModal() == wx.ID_OK:
             path_parameters = dialog.GetPath()
@@ -380,7 +369,20 @@ class View1(IncrementalApp):
         return dropdown
 
     def _set_ui_validators(self):
-        self.m_startTemp.SetValidator(NumRangeValidator(numeric_type='int'))
-        self.m_endTemp.SetValidator(NumRangeValidator(numeric_type='int'))
-        self.m_stepTemp.SetValidator(NumRangeValidator(numeric_type='int'))
+        for element in self._temperature_form.widget_list:
+            element.widget.SetValidator(
+                NumRangeValidator(numeric_type=element.input_type)
+            )
 
+        for element in self._wafer_form.widget_list:
+            if element.input_type in ["int", "float"]:
+                element.widget.SetValidator(
+                    NumRangeValidator(numeric_type=element.input_type)
+                )
+
+        for row in self._experiment_form:
+            for element in row.widget_list:
+                if element.input_type in ["int", "float"]:
+                    element.widget.SetValidator(
+                        NumRangeValidator(numeric_type=element.input_type)
+                    )
