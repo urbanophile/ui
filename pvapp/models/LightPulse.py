@@ -16,7 +16,7 @@ class LightPulse(object):
         assert metadata.amplitude > 0
         assert metadata.sample_rate > 0
 
-        self.Waveform = WAVEFORMS[metadata.waveform]
+        self.Waveform = metadata.waveform
         self.A = metadata.amplitude
         self.Offset_Before = metadata.offset_before
         self.Offset_After = metadata.offset_after

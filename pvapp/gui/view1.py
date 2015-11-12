@@ -25,10 +25,11 @@ class Form(object):
 
 class FormElement(object):
     """docstring for FormElement"""
-    def __init__(self, widget, widget_id, input_type):
+    def __init__(self, widget, widget_id, input_type, choices=None):
         self.widget = widget
         self.widget_id = widget_id
         self.input_type = input_type
+        self.choices = choices
 
 
 class View1(IncrementalApp):
@@ -56,9 +57,10 @@ class View1(IncrementalApp):
         ]
 
         self._temperature_scale_labels = [
-            "1 side",
-            "2 sides"
+            "kelvin",
+            "celsius"
         ]
+
         self._set_hardware_dropdowns()
 
         # experiment settings layout
@@ -77,13 +79,23 @@ class View1(IncrementalApp):
                 Form(
                     name="Experiment " + str(row_index),
                     widget_list=[
-                        FormElement(None, "waveform", "str"),
+                        FormElement(
+                            None,
+                            "waveform",
+                            "str",
+                            choices=WAVEFORMS
+                        ),
                         FormElement(None, "duration", "float"),
                         FormElement(None, "amplitude", "float"),
                         FormElement(None, "offset_before", "int"),
                         FormElement(None, "offset_after", "int"),
                         FormElement(None, "sample_rate", "float"),
-                        FormElement(None, "channel", "str"),
+                        FormElement(
+                            None,
+                            "channel",
+                            "str",
+                            choices=OUTPUTS
+                        ),
                         FormElement(None, "binning", "int"),
                         FormElement(None, "averaging", "int")
                     ]
@@ -98,7 +110,12 @@ class View1(IncrementalApp):
                 FormElement(self.m_waferNA, "wafer_na", "float"),
                 FormElement(self.m_waferND, "wafer_nd", "float"),
                 FormElement(self.m_waferDiffused, "wafer_diffused", "bool"),
-                FormElement(self.m_waferNumSides, "wafer_num_sides", "str")
+                FormElement(
+                    self.m_waferNumSides,
+                    "wafer_num_sides",
+                    "str",
+                    choices=self._num_sides_labels
+                )
             ]
         )
 
@@ -107,7 +124,14 @@ class View1(IncrementalApp):
             widget_list=[
                 FormElement(self.m_startTemp, "start_temp", "int"),
                 FormElement(self.m_endTemp, "end_temp", "int"),
-                FormElement(self.m_stepTemp, "step_temp", "int")
+                FormElement(self.m_stepTemp, "step_temp", "int"),
+                FormElement(self.m_stepWait, "step_wait", "int"),
+                FormElement(
+                    self.m_temperatureScale,
+                    "temperature_scale",
+                    "str",
+                    choices=self._temperature_scale_labels
+                )
             ],
         )
 
@@ -136,7 +160,7 @@ class View1(IncrementalApp):
         self._set_ui_validators()
         self._bind_events()
 
-        # self._test_setters()
+        self._test_setters()
 
     def _bind_events(self):
         self.m_transitionPage.Bind(wx.EVT_BUTTON, self._transition_page)
@@ -152,7 +176,9 @@ class View1(IncrementalApp):
         self.set_temperature_form({
             "start_temp": 1,
             "end_temp": 5,
-            "step_temp": 1
+            "step_temp": 1,
+            "step_wait": 0,
+            "temperature_scale": "kelvin"
         })
 
         self.set_wafer_form({
@@ -161,29 +187,29 @@ class View1(IncrementalApp):
             "wafer_na": 1,
             "wafer_nd": 6,
             "wafer_diffused": True,
-            "wafer_num_sides": 1
+            "wafer_num_sides": "1 side"
         })
 
         self.set_experiment_form([
             {
-                "waveform": 0,
+                "waveform": "Cos",
                 "duration": 1,
                 "amplitude": 0.5,
                 "offset_before": 1,
                 "offset_after": 10,
                 "sample_rate": 1.2e3,
-                "channel": 0,
+                "channel": "Low (50mA/V)",
                 "binning": 1,
                 "averaging": 1,
             },
             {
-                "waveform": 1,
+                "waveform": "Square",
                 "duration": 1,
                 "amplitude": 0.5,
                 "offset_before": 1,
                 "offset_after": 10,
                 "sample_rate": 1.2e3,
-                "channel": 1,
+                "channel": "High (2A/V)",
                 "binning": 1,
                 "averaging": 5,
             }
@@ -199,16 +225,14 @@ class View1(IncrementalApp):
             try:
                 type_func = known_types[entry.input_type]
                 if isinstance(entry.widget, wx.Choice):
-                    typed_inputs[entry.widget_id] = int(
-                        entry.widget.GetSelection()
-                    )
+                    typed_inputs[entry.widget_id] = entry.choices[
+                        int(entry.widget.GetSelection())
+                    ]
                 else:
                     typed_inputs[entry.widget_id] = type_func(
                         entry.widget.GetValue()
                     )
             except ValueError as e:
-                print entry.widget_id, entry.widget.GetValue()
-                print("ERROR", e)
                 if not allow_incomplete and entry.widget.GetValue() == '':
                     raise PVInputError("No value for {0} in form {1}".format(
                         entry.widget_id, form.name
@@ -227,35 +251,44 @@ class View1(IncrementalApp):
 
             # check if the row is enabled.
             if self.input_rows[row][0].GetValue() is True:
-                inputs.append(self.get_form(experiment, allow_incomplete))
+                result = self.get_form(experiment, allow_incomplete)
+
+                # this is a hack to avoid default settings being saved
+                if len(result) > 2:
+                    inputs.append(result)
         return inputs
 
-    def set_wafer_form(self, wafer_settings):
-        for element in self._wafer_form.widget_list:
+    def set_form(self, form, settings):
+        """
+        Given a form and a dictionary of settings sets UI values
+        """
+        for element in form.widget_list:
             widget = element.widget
-            print("wafer settings: ", wafer_settings)
-            value = wafer_settings[element.widget_id]
-            if isinstance(widget, wx.Choice):
-                widget.SetSelection(value)
-            else:
-                widget.SetValue(str(value))
+            try:
+                value = settings[element.widget_id]
+                if isinstance(widget, wx.Choice):
+                    print element.widget_id
+                    widget.SetSelection(element.choices.index(value))
+                elif isinstance(widget, wx.CheckBox):
+                    widget.SetValue(value)
+                else:
+                    widget.SetValue(str(value))
+            except Exception as e:
+                print element.widget_id
+                print(e)
+
+    def set_wafer_form(self, wafer_settings):
+        self.set_form(self._wafer_form, wafer_settings)
 
     def set_temperature_form(self, temp_settings):
-        for element in self._temperature_form.widget_list:
-            element.widget.SetValue(str(temp_settings[element.widget_id]))
+        self.set_form(self._temperature_form, temp_settings)
 
     def set_experiment_form(self, experiment_settings):
-        for row_num in range(self.NUM_ROWS):
-            for element in self._experiment_form[row_num].widget_list:
-                try:
-                    value = experiment_settings[row_num][element.widget_id]
-                    if isinstance(element.widget, wx.Choice):
-                        element.widget.SetSelection(value)
-                    else:
-                        element.widget.SetValue(str(value))
-                except Exception as e:
-                    print("Experiment Error: ", e)
-                    pass
+        for row_num in range(len(experiment_settings)):
+            self.set_form(
+                self._experiment_form[row_num],
+                experiment_settings[row_num]
+            )
 
     def set_display_PL(self):
         self.m_displayPL.Disable()
@@ -331,9 +364,8 @@ class View1(IncrementalApp):
 
     def _set_hardware_dropdowns(self):
         self.m_plCalibrationMethod.SetItems(self._pl_calibration_labels)
-        self.m_waferDiffused.SetItems(self._yes_no_labels)
         self.m_waferNumSides.SetItems(self._num_sides_labels)
-        self.m_waferNumSides.SetItems(self._temperature_scale_labels)
+        self.m_temperatureScale.SetItems(self._temperature_scale_labels)
 
     ###########################
     # Manipulate UI

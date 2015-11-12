@@ -6,7 +6,9 @@ class TemperatureSettings(object):
     Contains information for temperature change for a series of experiments
     """
 
-    def __init__(self, start_temp, end_temp, step_temp):
+    def __init__(self, start_temp, end_temp, step_temp, step_wait,
+                 temperature_scale):
+
         super(TemperatureSettings, self).__init__()
 
         temp_diff = abs(start_temp - end_temp)
@@ -25,15 +27,31 @@ class TemperatureSettings(object):
                 "Can't take that many steps in that between start and end."
             )
 
-        self.start_temp = start_temp
-        self.end_temp = end_temp
-        self.step_temp = step_temp
+        if start_temp == end_temp and step_temp != 0:
+            raise PVInputError(
+                "Can't take that many steps in that between start and end."
+            )
+
+        if temperature_scale == "celcius":
+            self.start_temp = start_temp + 273.15
+            self.end_temp = end_temp + 273.15
+            self.step_temp = step_temp + 273.15
+        else:
+            self.start_temp = start_temp
+            self.end_temp = end_temp
+            self.step_temp = step_temp
+
+        self.step_wait = step_wait
+
+        self.temperature_scale = "kelvin"
 
     def as_dict(self):
         return {
             "start_temp": self.start_temp,
             "end_temp": self.end_temp,
-            "step_temp": self.step_temp
+            "step_temp": self.step_temp,
+            "step_wait": self.step_wait,
+            "temperature_scale": self.temperature_scale
         }
 
     def __repr__(self):

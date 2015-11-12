@@ -15,8 +15,13 @@ from util.Exceptions import PVInputError
 
 
 class Controller(object):
-    """docstring for Controller"""
+    """A Controller to coordinate the UI, data, and hardware"""
+
     def __init__(self, app, view1):
+        """
+        :params app: a wx App object
+        :params view1: a wx Frame object
+        """
         super(Controller, self).__init__()
         self.view1 = view1
 
@@ -25,9 +30,7 @@ class Controller(object):
         data_dir = os.path.join(self.app_dir, "data_directory")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        print("data_dir: ", data_dir)
         self.data_dir = data_dir
-        print("self: ", self.data_dir)
 
         self._set_event_bindings()
         self.view1.Show()
@@ -45,14 +48,19 @@ class Controller(object):
         self.pc_calibration_data = PCCalibrationData()
 
     def data_output_dir(self, event):
-        print "datadir: ", self.data_dir
-        print (type(self.data_dir))
+        """
+        Select a different directory to save experimental results
+        """
+
         self.data_dir = self.view1.ask_user_for_dir(
             message="Choose a directory",
             defaultPath=self.data_dir,
         )
 
     def save_settings(self, event):
+        """
+        Saves settings as displayed in the forms
+        """
         settings = {}
         settings["temperature_settings"] = self.view1.get_temperature_form(
             allow_incomplete=True
@@ -68,15 +76,14 @@ class Controller(object):
             style=wx.SAVE
         )
         if file_dir is not None:
-            # utils.save_data(self.Data.Data, self.data_file, self.dirname)
             save_metadata(settings, file_name, file_dir)
 
     def load_settings(self, event):
-
+        """
+        Loads settings from the forms
+        """
         # TODO: change so just fills form out
         # and then reads into data structure when press perform measurement
-
-        print("load_settings")
 
         self.view1.clear_experiment_form()
 
@@ -98,11 +105,10 @@ class Controller(object):
                 )
             self.temperature_settings = settings["temp_settings"]
             # except Exception as e:
-            #     print("an Exception occured: {0}".format(e))
+            #     print("An Exception occurred: {0}".format(e))
         self.view1.set_experiment_form(
             self.measurement_handler.as_list()
         )
-        print(self.measurement_handler.as_list())
 
         self.view1.set_temperature_form(
             self.temperature_settings.as_dict()
@@ -110,6 +116,9 @@ class Controller(object):
         self.measurement_handler.clear_queue()
 
     def upload(self, event):
+        """
+        Bulk upload settings from a text file
+        """
         self.measurement_handler.clear_queue()
         file_dir, file_name = self.view1.ask_user_for_filename(
             defaultDir=self.app_dir,
@@ -143,9 +152,11 @@ class Controller(object):
         pass
 
     def perform_measurement(self, event):
+        """
+        Perform the queued measurements
+        """
 
         try:
-
             if not self.uploaded:
                 # try to retrieve settings from the various forms
                 config_dict = {}
@@ -156,7 +167,11 @@ class Controller(object):
                 config_dict["experiment_settings"] = (
                     self.view1.get_experiment_form()
                 )
-                settings = self._parse_config(config_dict)
+                try:
+                    settings = self._parse_config(config_dict)
+                except KeyError as e:
+                    self.view1.show_error_modal(str(e))
+
                 for setting in settings["experiment_settings"]:
                     self.measurement_handler.add_to_queue(
                         LightPulse(setting).create_waveform(),
@@ -164,28 +179,28 @@ class Controller(object):
                     )
                 self.wafer_settings = settings["wafer_settings"]
                 self.temperature_settings = settings["temp_settings"]
-                print("config_dict: ", config_dict)
 
             if self.data_dir is not None:
                 save_metadata(
                     self.wafer_settings.as_dict(),
-                    self.wafer_settings.id,
-                    self.data_dir
+                    self.data_dir,
+                    self.wafer_settings.id
                 )
 
             if self.measurement_handler.is_queue_empty():
                 raise(PVInputError("No measurements loaded."))
 
-            print("MeasurementHandler:", self.data_dir, self.wafer_settings.id)
             self.measurement_handler.series_measurement(
                 self.data_dir,
                 self.wafer_settings.id
             )
         except PVInputError as e:
-            print(type(e), str(e))
             self.view1.show_error_modal(str(e))
 
     def calibrate_pc(self, event):
+        """"
+        Perform and calibrate the PC measurement
+        """
         self.view1.show_calibration_modal()
 
         null_metadata = ExperimentSettings()
@@ -198,10 +213,16 @@ class Controller(object):
         self.pc_calibration.update_data(pc_data)
 
     def show_calibration_const(self, event):
+        """
+        Display the calibration constants
+        """
         message = str(self.pc_calibration_data.as_dict())
         self.view1.show_info_modal(message)
 
     def _set_event_bindings(self):
+        """
+        Setups all program behavior which isn't strictly related to the UI
+        """
 
         self.view1.m_dataOutputDir.Bind(wx.EVT_BUTTON, self.data_output_dir)
         self.view1.m_save.Bind(wx.EVT_BUTTON, self.save_settings)
@@ -219,41 +240,58 @@ class Controller(object):
         )
 
     def _parse_config(self, config):
+        """
+        Takes a dictionary of settings and constructs appropriate objects
+        """
+
         settings = {}
         measurement_list = []
         experiments_list = config["experiment_settings"]
         for item in experiments_list:
-            measurement_list.append(
-                ExperimentSettings(
-                    waveform=item['waveform'],
-                    duration=item['duration'],
-                    amplitude=item['amplitude'],
-                    offset_before=item['offset_before'],
-                    offset_after=item['offset_after'],
-                    sample_rate=item['sample_rate'],
-                    channel=item['channel'],
-                    binning=item['binning'],
-                    averaging=item['averaging']
+            try:
+                measurement_list.append(
+                    ExperimentSettings(
+                        waveform=item['waveform'],
+                        duration=item['duration'],
+                        amplitude=item['amplitude'],
+                        offset_before=item['offset_before'],
+                        offset_after=item['offset_after'],
+                        sample_rate=item['sample_rate'],
+                        channel=item['channel'],
+                        binning=item['binning'],
+                        averaging=item['averaging']
+                    )
                 )
-            )
+            except KeyError as e:
+                raise("Missing value in Experiment Settings: {0}".format(e))
+
         settings["experiment_settings"] = measurement_list
-        settings["temp_settings"] = TemperatureSettings(
-            start_temp=config["temperature_settings"]["start_temp"],
-            end_temp=config["temperature_settings"]["end_temp"],
-            step_temp=config["temperature_settings"]["step_temp"]
-        )
+
+        try:
+            settings["temp_settings"] = TemperatureSettings(
+                start_temp=config["temperature_settings"]["start_temp"],
+                end_temp=config["temperature_settings"]["end_temp"],
+                step_temp=config["temperature_settings"]["step_temp"],
+                step_wait=config["temperature_settings"]["step_wait"],
+                temperature_scale=config["temperature_settings"][
+                    "temperature_scale"
+                ]
+            )
+        except KeyError as e:
+            raise KeyError(
+                "Missing value in Temperature Settings: {0}".format(e)
+            )
         try:
             settings["wafer_settings"] = Wafer(
                 wafer_id=config["wafer_settings"]["wafer_id"],
                 thickness=config["wafer_settings"]["wafer_thickness"],
-                codoped=config["wafer_settings"]["wafer_codoped"],
                 na=config["wafer_settings"]["wafer_na"],
                 nd=config["wafer_settings"]["wafer_nd"],
                 diffused=config["wafer_settings"]["wafer_diffused"],
                 num_sides=config["wafer_settings"]["wafer_num_sides"]
             )
-        except Exception as e:
-            print("problems with wafer settings: {0}".format(e))
+        except KeyError as e:
+            raise KeyError("Missing value in Wafer settings: {0}".format(e))
         return settings
 
 if __name__ == "__main__":

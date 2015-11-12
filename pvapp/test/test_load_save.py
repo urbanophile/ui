@@ -20,9 +20,7 @@ class LoadSaveTest(unittest.TestCase):
                     # binning=config['binning'],
                     # averaging=config['averaging']
 
-
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
 
         self.set_temperature_form({
             "start_temp": 1,
@@ -65,11 +63,11 @@ class LoadSaveTest(unittest.TestCase):
             }
         ])
 
-        cls.test_data = np.array([1, 1, 1, 1])
-        cls.fname = "test_data"
-        cls.fpath = os.path.join(os.getcwd(), 'test', 'data')
-        cls.check_dat_path = os.path.join(cls.fpath, cls.fname + '.tsv')
-        cls.check_inf_path = os.path.join(cls.fpath, cls.fname + '.json')
+        self.test_data = np.array([1, 1, 1, 1])
+        self.fname = "test_data"
+        self.fpath = os.path.join(os.getcwd(), 'test', 'data')
+        self.check_dat_path = os.path.join(self.fpath, self.fname + '.tsv')
+        self.check_inf_path = os.path.join(self.fpath, self.fname + '.json')
 
     def test_write_data_to_file(self):
         save_data(

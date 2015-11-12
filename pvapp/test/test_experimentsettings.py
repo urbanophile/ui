@@ -39,7 +39,7 @@ class ExperimentSettingsTest(unittest.TestCase):
             "pc_calibration_mean": None,
             "pc_calibration_std": None
         }
-        self.assertDictEqual(self.meta_data.get_settings_as_dict(), meta_data)
+        self.assertDictEqual(self.meta_data.as_dict(), meta_data)
 
     def test_init(self):
         self.assertEqual(

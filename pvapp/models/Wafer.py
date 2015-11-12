@@ -6,7 +6,7 @@ class Wafer(object):
         """
             id: identifier for wafer
             thickness: thickness of the wafer (in mm)
-=            na: acceptor (boron) concentration
+            na: acceptor (boron) concentration
             nd: donor (phosphorus) concentration
             diffused: has N or P type layer
             num_sides: Number of sides on which it's diffused

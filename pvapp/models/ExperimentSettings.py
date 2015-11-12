@@ -26,7 +26,7 @@ class ExperimentSettings(object):
         self.offset_after = offset_after  # seconds
 
         self.sample_rate = sample_rate
-        self.channel = OUTPUTS[channel]
+        self.channel = channel
 
         self.binning = binning
         self.averaging = averaging
@@ -112,7 +112,7 @@ class ExperimentSettings(object):
             "offset_after": self.offset_after,
             "sample_rate": self.sample_rate,
             # ensures dict is passed to view in comprehensible format
-            "channel": OUTPUTS.index(self.channel),
+            "channel": self.channel,
 
             "binning": self.binning,
             "averaging": self.averaging
