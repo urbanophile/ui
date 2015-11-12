@@ -1,5 +1,6 @@
 import wx
 import os
+import time
 
 from gui.view1 import View1
 from gui.PlotModal import PlotModal
@@ -12,6 +13,7 @@ from models.TemperatureSettings import TemperatureSettings
 from models.Wafer import Wafer
 
 from util.utils import load_metadata, save_metadata
+from util.utils import save_data
 from util.Exceptions import PVInputError
 
 
@@ -155,7 +157,6 @@ class Controller(object):
         Plot waveforms in modal
         """
         self.PlotModal = PlotModal(self.app)
-        self.PlotModal.Show()
 
         waveform_list = []
         settings_dict = {}
@@ -164,8 +165,9 @@ class Controller(object):
             settings_dict["experiment_settings"] = self.view1.get_experiment_form()
             experiment_settings = self._parse_experiment_settings(settings_dict)
             for setting in experiment_settings:
-                waveform_list.append(LightPulse(setting).create_waveform())
+                waveform_list.append(-LightPulse(setting).create_waveform())
 
+            self.PlotModal.Show()
             self.PlotModal.plot_data(waveform_list)
         except PVInputError as e:
             self.view1.show_error_modal(str(e))
@@ -209,10 +211,28 @@ class Controller(object):
             if self.measurement_handler.is_queue_empty():
                 raise(PVInputError("No measurements loaded."))
 
-            self.measurement_handler.series_measurement(
-                self.data_dir,
-                self.wafer_settings.id
-            )
+            # Do the actual measurements
+            # TODO: refactor in separate method
+
+            dataset_list = []
+            total_measurements = 0
+            while not self.measurement_handler.is_queue_empty():
+
+                single_dataset = self.measurement_handler.single_measurement()
+                dataset_list.append(single_dataset)
+                total_measurements = total_measurements + 1
+                ts = int(time.time())
+                dataset_name = (
+                    str(total_measurements) +
+                    self.wafer_settings.id +
+                    str(ts)
+                )
+                save_data(single_dataset, dataset_name, self.data_dir)
+
+                self.PlotModal = PlotModal(self.app)
+                self.PlotModal.Show()
+                self.PlotModal.plot_data(single_dataset[1, :])
+
         except PVInputError as e:
             self.view1.show_error_modal(str(e))
 

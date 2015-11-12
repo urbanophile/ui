@@ -40,9 +40,10 @@ class PlotModal(wx.Frame):
     def ok_button(self, evt):
         self.Destroy()
 
-    def plot_data(self, data):
-
+    def clear_figure(self):
         self.Fig1.clear()
+
+    def plot_data(self, data):
         self.colours = ["r", "g", "b"]
         # This plots the figure
         for index, column in enumerate(data):
