@@ -28,6 +28,11 @@ class CanvasPanel(wx.Panel):
         self.axes = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self, -1, self.figure)
 
+        # set axis to default to x-scale
+        self.xscale = "linear"
+        self.yscale = "linear"
+
+
         # this controls the layout
         # self.figure.tight_layout()
 
@@ -70,6 +75,7 @@ class CanvasPanel(wx.Panel):
             markeredgecolor='k',
             markersize=5
         )
+
 
     def draw_line(self, x, y, Linestyle='-', Label='', Color='k', Linewidth=3):
         self.axes.plot(

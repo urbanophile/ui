@@ -216,6 +216,8 @@ class Controller(object):
 
             dataset_list = []
             total_measurements = 0
+            self.PlotModal = PlotModal(self.app)
+            self.PlotModal.Show()
             while not self.measurement_handler.is_queue_empty():
 
                 single_dataset = self.measurement_handler.single_measurement()
@@ -229,9 +231,8 @@ class Controller(object):
                 )
                 save_data(single_dataset, dataset_name, self.data_dir)
 
-                self.PlotModal = PlotModal(self.app)
-                self.PlotModal.Show()
-                self.PlotModal.plot_data(single_dataset[1, :])
+                # print single_dataset.shape
+                self.PlotModal.plot_data([x for x in single_dataset[:,1:].T])
 
         except PVInputError as e:
             self.view1.show_error_modal(str(e))
