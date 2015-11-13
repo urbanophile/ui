@@ -47,7 +47,6 @@ class PlotModal(wx.Frame):
         self.colours = ["r", "g", "b"]
         # This plots the figure
         for index, column in enumerate(data):
-            print(len(column))
 
             self.Fig1.draw_points(
                 range(len(column)),
