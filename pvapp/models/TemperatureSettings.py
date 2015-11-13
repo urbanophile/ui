@@ -32,7 +32,7 @@ class TemperatureSettings(object):
                 "Can't take that many steps in that between start and end."
             )
 
-        if temperature_scale == "celcius":
+        if temperature_scale == "Celcius":
             self.start_temp = start_temp + 273.15
             self.end_temp = end_temp + 273.15
             self.step_temp = step_temp + 273.15
@@ -43,7 +43,7 @@ class TemperatureSettings(object):
 
         self.step_wait = step_wait
 
-        self.temperature_scale = "kelvin"
+        self.temperature_scale = "Kelvin"
 
     def as_dict(self):
         return {

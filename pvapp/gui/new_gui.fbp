@@ -5793,7 +5793,7 @@
             <property name="minimum_size">-1,-1</property>
             <property name="name">IncrementalApp</property>
             <property name="pos"></property>
-            <property name="size">850,450</property>
+            <property name="size">900,450</property>
             <property name="style">wxDEFAULT_FRAME_STYLE</property>
             <property name="subclass"></property>
             <property name="title">IncrementalApp</property>
@@ -8163,7 +8163,7 @@
                                     </object>
                                     <object class="sizeritem" expanded="0">
                                         <property name="border">5</property>
-                                        <property name="flag">wxEXPAND</property>
+                                        <property name="flag">wxALIGN_CENTER</property>
                                         <property name="proportion">1</property>
                                         <object class="wxBoxSizer" expanded="0">
                                             <property name="minimum_size"></property>

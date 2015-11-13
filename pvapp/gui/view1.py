@@ -57,8 +57,8 @@ class View1(IncrementalApp):
         ]
 
         self._temperature_scale_labels = [
-            "kelvin",
-            "celsius"
+            "Kelvin",
+            "Celsius"
         ]
 
         self._set_hardware_dropdowns()
@@ -66,8 +66,15 @@ class View1(IncrementalApp):
         # experiment settings layout
         self.input_rows = []
         column_titles_str = [
-            u"", u"Waveform", u"Period", u"Amplitude", u"Offset1",
-            u"Offset2", u"Sample Rate", u"LED state", u"Binning", u"Averaging"
+            u"", u"Waveform",
+            u"Duration\n(s)",
+            u"Amplitude\n(V)",
+            u"Initial\nOffset (ms)",
+            u"Final\nOffset (ms)",
+            u"Sample\nRate (S)",
+            u"LED state",
+            u"Binning",
+            u"Average"
         ]
 
         self._experiment_form = []
@@ -153,9 +160,12 @@ class View1(IncrementalApp):
         self.m_autoPanel.Layout()
         # self.fgSizerAuto.Fit(self.m_autoPanel)
 
-        self.Layout()
-
+        # layout tweaks
         self.set_display_PL()
+        self.input_rows[0][0].SetValue(True)
+
+        # some wx prerequisite
+        self.Layout()
 
         self._set_ui_validators()
         self._bind_events()
@@ -178,7 +188,7 @@ class View1(IncrementalApp):
             "end_temp": 5,
             "step_temp": 1,
             "step_wait": 0,
-            "temperature_scale": "kelvin"
+            "temperature_scale": "Kelvin"
         })
 
         self.set_wafer_form({
@@ -423,7 +433,7 @@ class View1(IncrementalApp):
             self.m_autoPanel, wx.ID_ANY, number, wx.DefaultPosition,
             wx.DefaultSize, 0
         )
-        checkbox.SetValue(True)
+        checkbox.SetValue(False)
         self.fgSizerAuto.Add(checkbox, 0, wx.ALL, 5)
         return checkbox
 
